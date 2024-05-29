@@ -87,7 +87,7 @@ import (
 
 const (
 	// DragonboatMajor is the major version number
-	DragonboatMajor = 3
+	DragonboatMajor = 4
 	// DragonboatMinor is the minor version number
 	DragonboatMinor = 0
 	// DragonboatPatch is the patch version number
