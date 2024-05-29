@@ -1,7 +1,5 @@
 module github.com/foreeest/dragonboat
 
-go 1.22.2
-
 require (
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/cespare/xxhash/v2 v2.1.2
@@ -46,6 +44,7 @@ require (
 	github.com/valyala/histogram v1.2.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+go 1.22.2
