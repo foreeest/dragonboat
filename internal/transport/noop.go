@@ -23,9 +23,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/raftio"
+	"github.com/foreeest/dragonboat/raftpb"
 )
 
 var (

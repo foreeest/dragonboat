@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/raftio"
+	"github.com/foreeest/dragonboat/raftio"
 )
 
 func ExampleNodeHostConfig() {

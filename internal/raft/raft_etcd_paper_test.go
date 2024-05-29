@@ -38,8 +38,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/logger"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/logger"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 func TestFollowerUpdateTermFromMessage(t *testing.T) {

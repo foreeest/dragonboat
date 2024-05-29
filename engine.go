@@ -21,13 +21,13 @@ import (
 
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/rsm"
+	"github.com/foreeest/dragonboat/internal/server"
+	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/foreeest/dragonboat/raftio"
+	pb "github.com/foreeest/dragonboat/raftpb"
+	sm "github.com/foreeest/dragonboat/statemachine"
 )
 
 var (

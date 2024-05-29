@@ -31,9 +31,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/cockroachdb/errors/oserror"
 
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/internal/utils"
+	"github.com/foreeest/dragonboat/internal/vfs"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 const (

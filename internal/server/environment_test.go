@@ -21,13 +21,13 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/fileutil"
+	"github.com/foreeest/dragonboat/internal/id"
+	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/foreeest/dragonboat/internal/vfs"
+	"github.com/foreeest/dragonboat/raftio"
+	"github.com/foreeest/dragonboat/raftpb"
 )
 
 const (

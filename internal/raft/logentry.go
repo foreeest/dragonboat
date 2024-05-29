@@ -17,9 +17,9 @@ package raft
 import (
 	"github.com/cockroachdb/errors"
 
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/internal/server"
+	"github.com/foreeest/dragonboat/internal/settings"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 var (

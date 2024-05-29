@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/internal/fileutil"
+	sm "github.com/foreeest/dragonboat/statemachine"
 )
 
 // NoOP is a IStateMachine struct used for testing purpose.

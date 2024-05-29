@@ -23,11 +23,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/client"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/rsm"
+	pb "github.com/foreeest/dragonboat/raftpb"
+	sm "github.com/foreeest/dragonboat/statemachine"
 	"github.com/lni/goutils/random"
 )
 

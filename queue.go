@@ -17,8 +17,8 @@ package dragonboat
 import (
 	"sync"
 
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/raftio"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 type entryQueue struct {

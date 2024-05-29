@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/fileutil"
+	pb "github.com/foreeest/dragonboat/raftpb"
+	sm "github.com/foreeest/dragonboat/statemachine"
 )
 
 func init() {

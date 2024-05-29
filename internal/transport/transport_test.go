@@ -31,14 +31,14 @@ import (
 	"github.com/lni/goutils/netutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/registry"
+	"github.com/foreeest/dragonboat/internal/rsm"
+	"github.com/foreeest/dragonboat/internal/server"
+	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/foreeest/dragonboat/internal/vfs"
+	"github.com/foreeest/dragonboat/raftio"
+	"github.com/foreeest/dragonboat/raftpb"
 )
 
 var serverAddress = fmt.Sprintf("localhost:%d", getTestPort())

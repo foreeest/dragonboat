@@ -20,15 +20,15 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/utils/dio"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/internal/fileutil"
+	"github.com/foreeest/dragonboat/internal/logdb"
+	"github.com/foreeest/dragonboat/internal/rsm"
+	"github.com/foreeest/dragonboat/internal/server"
+	"github.com/foreeest/dragonboat/internal/utils/dio"
+	"github.com/foreeest/dragonboat/internal/vfs"
+	"github.com/foreeest/dragonboat/raftio"
+	pb "github.com/foreeest/dragonboat/raftpb"
+	sm "github.com/foreeest/dragonboat/statemachine"
 )
 
 func compressionType(ct pb.CompressionType) dio.CompressionType {

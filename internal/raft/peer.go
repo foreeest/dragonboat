@@ -42,9 +42,9 @@ package raft
 import (
 	"sort"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/server"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/config"
+	"github.com/foreeest/dragonboat/internal/server"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 // PeerAddress is the basic info for a peer in the Raft shard.

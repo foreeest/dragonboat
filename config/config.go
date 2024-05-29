@@ -30,13 +30,13 @@ import (
 	"github.com/lni/goutils/netutil"
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/internal/fileutil"
+	"github.com/foreeest/dragonboat/internal/id"
+	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/foreeest/dragonboat/internal/vfs"
+	"github.com/foreeest/dragonboat/logger"
+	"github.com/foreeest/dragonboat/raftio"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 var (

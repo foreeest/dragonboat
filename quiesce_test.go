@@ -17,7 +17,7 @@ package dragonboat
 import (
 	"testing"
 
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 func getTestQuiesce() quiesceState {

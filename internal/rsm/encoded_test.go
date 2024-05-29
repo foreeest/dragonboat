@@ -19,8 +19,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/utils/dio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/internal/utils/dio"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 func mustGetPayload(e pb.Entry) []byte {

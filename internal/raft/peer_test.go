@@ -39,8 +39,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/config"
+	pb "github.com/foreeest/dragonboat/raftpb"
 )
 
 func ne(err error, t *testing.T) {

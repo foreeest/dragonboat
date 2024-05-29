@@ -17,7 +17,7 @@ package rsm
 import (
 	"sync"
 
-	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/foreeest/dragonboat/internal/settings"
 )
 
 var (
