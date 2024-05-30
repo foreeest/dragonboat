@@ -1366,8 +1366,12 @@ func resetNodeUpdate(nodeUpdates []pb.Update) {
 	for i := range nodeUpdates {
 		nodeUpdates[i].EntriesToSave = nil
 		nodeUpdates[i].CommittedEntries = nil
-		for j := range nodeUpdates[i].Messages {
-			nodeUpdates[i].Messages[j].Entries = nil
+		for j := range nodeUpdates[i].My_Messages {
+			nodeUpdates[i].My_Messages[j].Entries = nil
+		}
+		//JPF: add
+		for j := range nodeUpdates[i].My_Messages {
+			nodeUpdates[i].My_Messages[j].Entries = nil
 		}
 	}
 }

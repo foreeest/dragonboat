@@ -380,10 +380,13 @@ func (c *Chunk) toMessage(chunk pb.Chunk,
 	}
 	env := c.getEnv(chunk)
 	snapDir := env.GetFinalDir()
-	m := pb.Message{}
+	m := pb.MY_Message{}
 	m.Type = pb.InstallSnapshot
 	m.From = chunk.From
-	m.To = chunk.ReplicaID
+	var to_list []uint64
+	to_list = append(to_list, chunk.ReplicaID)
+	m.To = to_list
+	//m.To = chunk.ReplicaID
 	m.ShardID = chunk.ShardID
 	s := pb.Snapshot{}
 	s.Index = chunk.Index
@@ -403,7 +406,7 @@ func (c *Chunk) toMessage(chunk pb.Chunk,
 	return pb.MessageBatch{
 		BinVer:       chunk.BinVer,
 		DeploymentId: chunk.DeploymentId,
-		Requests:     []pb.Message{m},
+		Requests:     []pb.MY_Message{m},
 	}
 }
 

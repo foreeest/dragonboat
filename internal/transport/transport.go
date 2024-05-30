@@ -94,8 +94,8 @@ type IMessageHandler interface {
 // Raft messages.
 type ITransport interface {
 	Name() string
-	Send(pb.Message) bool
-	SendSnapshot(pb.Message) bool
+	Send(pb.MY_Message) bool
+	SendSnapshot(pb.MY_Message) bool
 	GetStreamSink(shardID uint64, replicaID uint64) *Sink
 	Close() error
 }
@@ -113,7 +113,7 @@ type StreamChunkSendFunc func(pb.Chunk) (pb.Chunk, bool)
 type SendMessageBatchFunc func(pb.MessageBatch) (pb.MessageBatch, bool)
 
 type sendQueue struct {
-	ch chan pb.Message
+	ch chan pb.MY_Message
 	rl *server.RateLimiter
 }
 
@@ -121,14 +121,14 @@ func (sq *sendQueue) rateLimited() bool {
 	return sq.rl.RateLimited()
 }
 
-func (sq *sendQueue) increase(msg pb.Message) {
+func (sq *sendQueue) increase(msg pb.MY_Message) {
 	if msg.Type != pb.Replicate {
 		return
 	}
 	sq.rl.Increase(pb.GetEntrySliceInMemSize(msg.Entries))
 }
 
-func (sq *sendQueue) decrease(msg pb.Message) {
+func (sq *sendQueue) decrease(msg pb.MY_Message) {
 	if msg.Type != pb.Replicate {
 		return
 	}
@@ -343,7 +343,7 @@ func (t *Transport) notifyUnreachable(addr string, affected nodeMap) {
 //
 // The generic async send Go pattern used in Send() is found in CockroachDB's
 // codebase.
-func (t *Transport) Send(req pb.Message) bool {
+func (t *Transport) Send(req pb.MY_Message) bool {
 	v, _ := t.send(req)
 	if !v {
 		t.metrics.messageSendFailure(1)
@@ -351,14 +351,17 @@ func (t *Transport) Send(req pb.Message) bool {
 	return v
 }
 
-func (t *Transport) send(req pb.Message) (bool, failedSend) {
+func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 	if req.Type == pb.InstallSnapshot {
 		panic("snapshot message must be sent via its own channel.")
 	}
+	//JPF: here will be a loop ??
+
 	toReplicaID := req.To
+
 	shardID := req.ShardID
 	from := req.From
-	addr, key, err := t.resolver.Resolve(shardID, toReplicaID)
+	addr, key, err := t.resolver.Resolve(shardID, toReplicaID) //// IResolver converts the (shard id, replica id) tuple to network address.
 	if err != nil {
 		return false, unknownTarget
 	}
@@ -372,7 +375,7 @@ func (t *Transport) send(req pb.Message) (bool, failedSend) {
 	sq, ok := t.mu.queues[key]
 	if !ok {
 		sq = sendQueue{
-			ch: make(chan pb.Message, sendQueueLen),
+			ch: make(chan pb.MY_Message, sendQueueLen),
 			rl: server.NewRateLimiter(t.nhConfig.MaxSendQueueSize),
 		}
 		t.mu.queues[key] = sq
@@ -450,7 +453,7 @@ func (t *Transport) processMessages(remoteHost string,
 		BinVer:        raftio.TransportBinVersion,
 	}
 	did := t.nhConfig.GetDeploymentID()
-	requests := make([]pb.Message, 0)
+	requests := make([]pb.MY_Message, 0)
 	for {
 		idleTimer.Reset(idleTimeout)
 		select {
@@ -493,7 +496,7 @@ func (t *Transport) processMessages(remoteHost string,
 				return err
 			}
 			if twoBatch {
-				batch.Requests = []pb.Message{requests[len(requests)-1]}
+				batch.Requests = []pb.MY_Message{requests[len(requests)-1]}
 				if err := t.sendMessageBatch(conn, batch); err != nil {
 					plog.Errorf("send batch failed, taret node %s (%v), %d",
 						remoteHost, err, len(batch.Requests))
@@ -507,13 +510,13 @@ func (t *Transport) processMessages(remoteHost string,
 	}
 }
 
-func lazyFree(reqs []pb.Message,
-	mb pb.MessageBatch) ([]pb.Message, pb.MessageBatch) {
+func lazyFree(reqs []pb.MY_Message,
+	mb pb.MessageBatch) ([]pb.MY_Message, pb.MessageBatch) {
 	if lazyFreeCycle > 0 {
 		for i := 0; i < len(reqs); i++ {
 			reqs[i].Entries = nil
 		}
-		mb.Requests = []pb.Message{}
+		mb.Requests = []pb.MY_Message{}
 	}
 	return reqs, mb
 }

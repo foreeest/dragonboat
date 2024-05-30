@@ -96,7 +96,8 @@ type Update struct {
 	// As stated above, replication messages can be immediately sent, all other
 	// messages must be sent after the persistent state and entries are saved
 	// onto persistent storage.
-	Messages []Message
+	//Messages    []Message
+	My_Messages []MY_Message
 	// LastApplied is the actual last applied index reported by the RSM.
 	LastApplied uint64
 	// UpdateCommit contains info on how the Update instance can be committed
@@ -118,7 +119,8 @@ func (u *Update) HasUpdate() bool {
 		!IsEmptySnapshot(u.Snapshot) ||
 		len(u.EntriesToSave) > 0 ||
 		len(u.CommittedEntries) > 0 ||
-		len(u.Messages) > 0 ||
+		//len(u.Messages) > 0 ||
+		len(u.My_Messages) > 0 ||
 		len(u.ReadyToReads) > 0 ||
 		len(u.DroppedEntries) > 0
 }

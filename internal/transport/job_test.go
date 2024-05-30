@@ -47,7 +47,7 @@ func TestSnapshotJobCanBeCreatedInStreamingMode(t *testing.T) {
 
 func TestSendSavedSnapshotPutsAllChunksInCh(t *testing.T) {
 	fs := vfs.GetTestFS()
-	m := pb.Message{
+	m := pb.MY_Message{
 		Type: pb.InstallSnapshot,
 		Snapshot: pb.Snapshot{
 			FileSize: 1024 * 1024 * 512,

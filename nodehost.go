@@ -1873,7 +1873,7 @@ func (nh *NodeHost) handleListenerEvents() {
 	}
 }
 
-func (nh *NodeHost) sendMessage(msg pb.Message) {
+func (nh *NodeHost) sendMessage(msg pb.MY_Message) {
 	if nh.isPartitioned() {
 		return
 	}
@@ -1902,9 +1902,12 @@ func (nh *NodeHost) sendMessage(msg pb.Message) {
 
 func (nh *NodeHost) sendTickMessage(shards []*node, tick uint64) {
 	for _, n := range shards {
-		m := pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, n.replicaID)
+		m := pb.MY_Message{
 			Type: pb.LocalTick,
-			To:   n.replicaID,
+			//To:   n.replicaID,
+			To:   to_list,
 			From: n.replicaID,
 			Hint: tick,
 		}
@@ -2102,7 +2105,7 @@ func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64
 			} else if req.Type == pb.SnapshotReceived {
 				plog.Debugf("SnapshotReceived received, shard id %d, replica id %d",
 					req.ShardID, req.From)
-				n.mq.AddDelayed(pb.Message{
+				n.mq.AddDelayed(pb.MY_Message{
 					Type: pb.SnapshotStatus,
 					From: req.From,
 				}, streamConfirmedDelayTick)
@@ -2132,7 +2135,7 @@ func (h *messageHandler) HandleSnapshotStatus(shardID uint64,
 		ReplicaID: replicaID,
 	})
 	if n, ok := h.nh.getShard(shardID); ok {
-		n.mq.AddDelayed(pb.Message{
+		n.mq.AddDelayed(pb.MY_Message{
 			Type:   pb.SnapshotStatus,
 			From:   replicaID,
 			Reject: failed,
@@ -2143,10 +2146,13 @@ func (h *messageHandler) HandleSnapshotStatus(shardID uint64,
 
 func (h *messageHandler) HandleUnreachable(shardID uint64, replicaID uint64) {
 	if n, ok := h.nh.getShard(shardID); ok {
-		m := pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, n.replicaID)
+		m := pb.MY_Message{
 			Type: pb.Unreachable,
 			From: replicaID,
-			To:   n.replicaID,
+			//To:   n.replicaID,
+			To: to_list,
 		}
 		n.mq.MustAdd(m)
 		h.nh.engine.setStepReady(shardID)
@@ -2155,8 +2161,11 @@ func (h *messageHandler) HandleUnreachable(shardID uint64, replicaID uint64) {
 
 func (h *messageHandler) HandleSnapshot(shardID uint64,
 	replicaID uint64, from uint64) {
-	m := pb.Message{
-		To:      from,
+	var to_list []uint64
+	to_list = append(to_list, from)
+	m := pb.MY_Message{
+		//To:      from,
+		To:      to_list,
 		From:    replicaID,
 		ShardID: shardID,
 		Type:    pb.SnapshotReceived,

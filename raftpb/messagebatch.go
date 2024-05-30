@@ -4,7 +4,7 @@
 package raftpb
 
 type MessageBatch struct {
-	Requests      []Message
+	Requests      []MY_Message
 	DeploymentId  uint64
 	SourceAddress string
 	BinVer        uint32

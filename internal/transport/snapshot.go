@@ -51,7 +51,7 @@ var (
 )
 
 // SendSnapshot asynchronously sends raft snapshot message to its target.
-func (t *Transport) SendSnapshot(m pb.Message) bool {
+func (t *Transport) SendSnapshot(m pb.MY_Message) bool {
 	if !t.sendSnapshot(m) {
 		plog.Errorf("failed to send snapshot to %s", dn(m.ShardID, m.To))
 		t.sendSnapshotNotification(m.ShardID, m.To, true)
@@ -93,7 +93,7 @@ func (t *Transport) getStreamSink(shardID uint64, replicaID uint64) *Sink {
 	return nil
 }
 
-func (t *Transport) sendSnapshot(m pb.Message) bool {
+func (t *Transport) sendSnapshot(m pb.MY_Message) bool {
 	if !t.doSendSnapshot(m) {
 		if err := m.Snapshot.Unref(); err != nil {
 			panic(err)
@@ -103,7 +103,7 @@ func (t *Transport) sendSnapshot(m pb.Message) bool {
 	return true
 }
 
-func (t *Transport) doSendSnapshot(m pb.Message) bool {
+func (t *Transport) doSendSnapshot(m pb.MY_Message) bool {
 	toReplicaID := m.To
 	shardID := m.ShardID
 	if m.Type != pb.InstallSnapshot {
@@ -201,7 +201,7 @@ func (t *Transport) sendSnapshotNotification(shardID uint64,
 		dn(shardID, replicaID), rejected)
 }
 
-func splitBySnapshotFile(msg pb.Message,
+func splitBySnapshotFile(msg pb.MY_Message,
 	filepath string, filesize uint64, startChunkID uint64,
 	sf *pb.SnapshotFile) []pb.Chunk {
 	if filesize == 0 {
@@ -242,7 +242,7 @@ func splitBySnapshotFile(msg pb.Message,
 	return results
 }
 
-func getChunks(m pb.Message) []pb.Chunk {
+func getChunks(m pb.MY_Message) []pb.Chunk {
 	startChunkID := uint64(0)
 	results := splitBySnapshotFile(m,
 		m.Snapshot.Filepath, m.Snapshot.FileSize, startChunkID, nil)
@@ -259,7 +259,7 @@ func getChunks(m pb.Message) []pb.Chunk {
 	return results
 }
 
-func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func getWitnessChunk(m pb.MY_Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	ss, err := rsm.GetWitnessSnapshot(fs)
 	if err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	return results, nil
 }
 
-func splitSnapshotMessage(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func splitSnapshotMessage(m pb.MY_Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	if m.Type != pb.InstallSnapshot {
 		panic("not a snapshot message")
 	}
