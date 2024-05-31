@@ -687,9 +687,9 @@ func TestTCPTransportIsUsedByDefault(t *testing.T) {
 	to := &testOption{
 		tf: func(nh *NodeHost) {
 			tt := nh.transport.(*transport.Transport)
-			if tt.GetTrans().Name() != transport.TCPTransportName {
+			if tt.GetTrans().Name() != transport.UDPTransportName {
 				t.Errorf("transport type name %s, expect %s",
-					tt.GetTrans().Name(), transport.TCPTransportName)
+					tt.GetTrans().Name(), transport.UDPTransportName)
 			}
 		},
 		noElection: true,
