@@ -5,14 +5,19 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"os"
+
 	"github.com/cockroachdb/errors"
 	"github.com/foreeest/dragonboat/config"
 	"github.com/foreeest/dragonboat/internal/settings"
+
 	//"github.com/foreeest/dragonboat/logger"
+	"hash/crc32"
+
 	"github.com/foreeest/dragonboat/raftio"
 	pb "github.com/foreeest/dragonboat/raftpb"
 	"github.com/lni/goutils/syncutil"
-	"hash/crc32"
+
 	//"io"
 	"net"
 	"sync"
@@ -234,13 +239,15 @@ func (t *UDP) Start() error {
 	addr, _ := t.get_udp_Addr(address)
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
+		fmt.Println("listen UDP error", err)
+		os.Exit(1)
 		return err
 	}
 	// listener, err := netutil.NewStoppableListener(address,
 	// 	tlsConfig, t.stopper.ShouldStop())
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 	t.connStopper.RunWorker(func() {
 		// sync.WaitGroup's doc mentions that
 		// "Note that calls with a positive delta that occur when the counter is
@@ -280,6 +287,7 @@ func (t *UDP) Start() error {
 				closeFn()
 			})
 			t.connStopper.RunWorker(func() {
+
 				t.serveConn(*conn, addr)
 				closeFn()
 			})
