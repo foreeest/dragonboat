@@ -924,6 +924,7 @@ func TestSnapshotWithNotMatchedBinVerWillBeDropped(t *testing.T) {
 		return c, true
 	}
 	testSnapshotWithNotMatchedDBVWillBeDropped(t, f, true, fs)
+	fmt.Printf("through 1")
 	testSnapshotWithNotMatchedDBVWillBeDropped(t, f, false, fs)
 }
 

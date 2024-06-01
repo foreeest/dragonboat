@@ -109,7 +109,8 @@ func readMessage_to_buff(conn net.UDPConn,
 		n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
 		if err != nil {
 			fmt.Println("Error reading from UDP:", err)
-			continue
+			os.Exit(1)
+			//continue
 		}
 		fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
 		return n, buffer, err
@@ -122,9 +123,8 @@ func readMessage(conn net.UDPConn,
 	buffer = make([]byte, 1500) //数据报最大大小是1500
 	//gpt4o:当缓冲区 p 的大小大于从网络连接中读取的数据时，不会发生错误或异常，只是缓冲区 p 的一部分会被使用来存储读取到的数据，其余部分保持不变
 	n, buffer, _ := readMessage_to_buff(conn, buffer)
-	if n < requestHeaderSize+len(magicNumber) {
-		plog.Errorf("failed to get the header,conn.ReadFromUDP return n < requestHeaderSize + len(magicNumber)")
-		return requestHeader{}, nil, ErrBadMessage
+	if n < len(magicNumber) {
+		plog.Errorf("failed to get the header,conn.ReadFromUDP return n <  len(magicNumber)")
 	}
 	copy(magicNum, buffer[0:len(magicNumber)])
 	if bytes.Equal(magicNum, poisonNumber[:]) {
@@ -134,6 +134,11 @@ func readMessage(conn net.UDPConn,
 		return requestHeader{}, nil, errPoisonReceived
 	}
 	if !bytes.Equal(magicNum, magicNumber[:]) {
+		return requestHeader{}, nil, ErrBadMessage
+	}
+
+	if n < requestHeaderSize+len(magicNumber) {
+		plog.Errorf("failed to get the header,conn.ReadFromUDP return n < requestHeaderSize + len(magicNumber) ")
 		return requestHeader{}, nil, ErrBadMessage
 	}
 
@@ -395,29 +400,39 @@ func writeMessage(conn net.UDPConn,
 	if err := conn.SetWriteDeadline(tt); err != nil {
 		return err
 	}
-	if _, err := conn.Write(magicNumber[:]); err != nil {
+	if len(buf) > 1480 {
+		fmt.Printf("buf must be split, but JPF didn't handle ,exit")
+		os.Exit(1)
+	}
+	// if _, err := conn.Write(magicNumber[:]); err != nil {
+	// 	return err
+	// }
+	// if _, err := conn.Write(headerBuf); err != nil {
+	// 	return err
+	// }
+	// sent := 0
+	// bufSize := int(recvBufSize)
+	// for sent < len(buf) {
+	// 	if sent+bufSize > len(buf) {
+	// 		bufSize = len(buf) - sent
+	// 	}
+	// 	tt = time.Now().Add(writeDuration)
+	// 	if err := conn.SetWriteDeadline(tt); err != nil {
+	// 		return err
+	// 	}
+	// 	if _, err := conn.Write(buf[sent : sent+bufSize]); err != nil {
+	// 		return err
+	// 	}
+	// 	sent += bufSize
+	// }
+	// if sent != len(buf) {
+	// 	plog.Panicf("sent %d, buf len %d", sent, len(buf))
+	// }
+	//var to_send_buff []byte
+	merge := append(magicNumber[:], headerBuf...)
+	to_send_buff := append(merge, buf...)
+	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
-	}
-	if _, err := conn.Write(headerBuf); err != nil {
-		return err
-	}
-	sent := 0
-	bufSize := int(recvBufSize)
-	for sent < len(buf) {
-		if sent+bufSize > len(buf) {
-			bufSize = len(buf) - sent
-		}
-		tt = time.Now().Add(writeDuration)
-		if err := conn.SetWriteDeadline(tt); err != nil {
-			return err
-		}
-		if _, err := conn.Write(buf[sent : sent+bufSize]); err != nil {
-			return err
-		}
-		sent += bufSize
-	}
-	if sent != len(buf) {
-		plog.Panicf("sent %d, buf len %d", sent, len(buf))
 	}
 	return nil
 }
