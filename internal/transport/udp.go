@@ -257,6 +257,7 @@ func (t *UDP) Start() error {
 	if stringutil.HostnameRegex.MatchString(hostname) {
 		fmt.Printf("JPF didn't implement using hostname, please use ip and port,such as 127.0.0.1:10004")
 		os.Exit(1)
+		return nil
 	}
 	// if err != nil {
 	// 	return err
