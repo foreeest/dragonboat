@@ -444,6 +444,8 @@ func TestMessageCanBeSent(t *testing.T) {
 	fs := vfs.GetTestFS()
 	defer leaktest.AfterTest(t)()
 	testMessageCanBeSent(t, false, settings.LargeEntitySize+1, fs)
+	fmt.Printf("1 through")
+	os.Exit(1)
 	testMessageCanBeSent(t, false, recvBufSize/2, fs)
 	testMessageCanBeSent(t, false, recvBufSize+1, fs)
 	testMessageCanBeSent(t, false, perConnBufSize+1, fs)
