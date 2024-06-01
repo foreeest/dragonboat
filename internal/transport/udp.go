@@ -105,18 +105,16 @@ func (h *requestHeader) decode(buf []byte) bool {
 func readMessage_to_buff(conn net.UDPConn,
 	buffer []byte) (int, []byte, error) {
 
-	for {
-		n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
-		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
-			//os.Exit(1)
-			//continue
-			return n, buffer, err
-		}
-		fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
+	n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
+	if err != nil {
+		fmt.Println("Error reading from UDP:", err)
+		//os.Exit(1)
+		//continue
 		return n, buffer, err
 	}
-
+	fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
+	fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
+	return n, buffer, err
 }
 func readMessage(conn net.UDPConn,
 	header []byte, rbuf []byte, magicNum []byte, encrypted bool, addr *net.UDPAddr) (requestHeader, []byte, error) {
@@ -130,7 +128,7 @@ func readMessage(conn net.UDPConn,
 	if n < len(magicNumber) {
 		plog.Errorf("failed to get the header,conn.ReadFromUDP return n <  len(magicNumber)")
 	}
-	copy(magicNum, buffer[0:len(magicNumber)])
+	magicNum = buffer[0:len(magicNumber)]
 	if bytes.Equal(magicNum, poisonNumber[:]) {
 		if err := sendPoisonAck(conn, poisonNumber[:], addr); err != nil {
 			plog.Debugf("failed to send poison ack %v", err)
@@ -146,7 +144,7 @@ func readMessage(conn net.UDPConn,
 		return requestHeader{}, nil, ErrBadMessage
 	}
 
-	copy(header, buffer[len(magicNumber):len(magicNumber)+requestHeaderSize])
+	header = buffer[len(magicNumber) : len(magicNumber)+requestHeaderSize]
 	rheader := requestHeader{}
 	if !rheader.decode(header) {
 		plog.Errorf("invalid header")
@@ -158,11 +156,13 @@ func readMessage(conn net.UDPConn,
 	} else {
 		buf = rbuf[:rheader.size]
 	}
-	copy(buf, buffer[requestHeaderSize:n]) //这里到n，有没有错？
-	// if !encrypted && crc32.ChecksumIEEE(buf) != rheader.crc {
-	// 	plog.Errorf("invalid payload checksum")
-	// 	return requestHeader{}, nil, ErrBadMessage
-	// }
+	buf = buffer[requestHeaderSize+len(magicNum) : n] //这里到n，有没有错？   干！我是傻逼，这里忘记加len(magicNum)
+	if !encrypted && crc32.ChecksumIEEE(buf) != rheader.crc {
+		fmt.Printf("crc32.ChecksumIEEE(buf):%d\n", crc32.ChecksumIEEE(buf))
+		fmt.Printf("rheader.crc:%d\n", rheader.crc)
+		plog.Errorf("invalid payload checksum")
+		return requestHeader{}, nil, ErrBadMessage
+	}
 	return rheader, buf, nil
 }
 
@@ -410,6 +410,7 @@ func writeMessage(conn net.UDPConn,
 	header.size = uint64(len(buf))
 	if !encrypted {
 		header.crc = crc32.ChecksumIEEE(buf)
+		fmt.Printf("header.crc when write: %d\n", header.crc)
 	}
 	headerBuf = header.encode(headerBuf)
 	tt := time.Now().Add(magicNumberDuration).Add(headerDuration)
@@ -447,6 +448,8 @@ func writeMessage(conn net.UDPConn,
 	//var to_send_buff []byte
 	merge := append(magicNumber[:], headerBuf...)
 	to_send_buff := append(merge, buf...)
+	fmt.Printf("header.crc when write: %d\n", header.crc)
+	fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
 	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
 	}
