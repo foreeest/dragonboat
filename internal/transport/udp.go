@@ -5,14 +5,19 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"os"
+
 	"github.com/cockroachdb/errors"
 	"github.com/foreeest/dragonboat/config"
 	"github.com/foreeest/dragonboat/internal/settings"
+
 	//"github.com/foreeest/dragonboat/logger"
+	"hash/crc32"
+
 	"github.com/foreeest/dragonboat/raftio"
 	pb "github.com/foreeest/dragonboat/raftpb"
 	"github.com/lni/goutils/syncutil"
-	"hash/crc32"
+
 	//"io"
 	"net"
 	"sync"
@@ -100,28 +105,30 @@ func (h *requestHeader) decode(buf []byte) bool {
 func readMessage_to_buff(conn net.UDPConn,
 	buffer []byte) (int, []byte, error) {
 
-	for {
-		n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
-		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
-			continue
-		}
-		fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
+	n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
+	if err != nil {
+		fmt.Println("Error reading from UDP:", err)
+		//os.Exit(1)
+		//continue
 		return n, buffer, err
 	}
-
+	fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
+	fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
+	return n, buffer, err
 }
 func readMessage(conn net.UDPConn,
 	header []byte, rbuf []byte, magicNum []byte, encrypted bool, addr *net.UDPAddr) (requestHeader, []byte, error) {
 	var buffer []byte
 	buffer = make([]byte, 1500) //数据报最大大小是1500
 	//gpt4o:当缓冲区 p 的大小大于从网络连接中读取的数据时，不会发生错误或异常，只是缓冲区 p 的一部分会被使用来存储读取到的数据，其余部分保持不变
-	n, buffer, _ := readMessage_to_buff(conn, buffer)
-	if n < requestHeaderSize+len(magicNumber) {
-		plog.Errorf("failed to get the header,conn.ReadFromUDP return n < requestHeaderSize + len(magicNumber)")
-		return requestHeader{}, nil, ErrBadMessage
+	n, buffer, err := readMessage_to_buff(conn, buffer)
+	if err != nil {
+		return requestHeader{}, nil, err
 	}
-	copy(magicNum, buffer[0:len(magicNumber)])
+	if n < len(magicNumber) {
+		plog.Errorf("failed to get the header,conn.ReadFromUDP return n <  len(magicNumber)")
+	}
+	magicNum = buffer[0:len(magicNumber)]
 	if bytes.Equal(magicNum, poisonNumber[:]) {
 		if err := sendPoisonAck(conn, poisonNumber[:], addr); err != nil {
 			plog.Debugf("failed to send poison ack %v", err)
@@ -132,7 +139,12 @@ func readMessage(conn net.UDPConn,
 		return requestHeader{}, nil, ErrBadMessage
 	}
 
-	copy(header, buffer[len(magicNumber):len(magicNumber)+requestHeaderSize])
+	if n < requestHeaderSize+len(magicNumber) {
+		plog.Errorf("failed to get the header,conn.ReadFromUDP return n < requestHeaderSize + len(magicNumber) ")
+		return requestHeader{}, nil, ErrBadMessage
+	}
+
+	header = buffer[len(magicNumber) : len(magicNumber)+requestHeaderSize]
 	rheader := requestHeader{}
 	if !rheader.decode(header) {
 		plog.Errorf("invalid header")
@@ -144,8 +156,10 @@ func readMessage(conn net.UDPConn,
 	} else {
 		buf = rbuf[:rheader.size]
 	}
-	copy(buf, buffer[requestHeaderSize:n]) //这里到n，有没有错？
+	buf = buffer[requestHeaderSize+len(magicNum) : n] //这里到n，有没有错？   干！我是傻逼，这里忘记加len(magicNum)
 	if !encrypted && crc32.ChecksumIEEE(buf) != rheader.crc {
+		fmt.Printf("crc32.ChecksumIEEE(buf):%d\n", crc32.ChecksumIEEE(buf))
+		fmt.Printf("rheader.crc:%d\n", rheader.crc)
 		plog.Errorf("invalid payload checksum")
 		return requestHeader{}, nil, ErrBadMessage
 	}
@@ -196,7 +210,7 @@ func (t *UDP) get_udp_Addr(IPaddress_and_port string) (*net.UDPAddr, error) {
 	return addr, err
 }
 
-func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) {
+func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 	magicNum := make([]byte, len(magicNumber))
 	header := make([]byte, requestHeaderSize)
 	tbuf := make([]byte, payloadBufferSize)
@@ -204,22 +218,22 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) {
 
 		rheader, buf, err := readMessage(conn, header, tbuf, magicNum, t.encrypted, addr)
 		if err != nil {
-			return
+			return err
 		}
 		if rheader.method == raftType {
 			batch := pb.MessageBatch{}
 			if err := batch.Unmarshal(buf); err != nil {
-				return
+				return nil
 			}
 			t.requestHandler(batch)
 		} else {
 			chunk := pb.Chunk{}
 			if err := chunk.Unmarshal(buf); err != nil {
-				return
+				return nil
 			}
 			if !t.chunkHandler(chunk) {
 				plog.Errorf("chunk rejected %s", chunkKey(chunk))
-				return
+				return nil
 			}
 		}
 	}
@@ -234,13 +248,15 @@ func (t *UDP) Start() error {
 	addr, _ := t.get_udp_Addr(address)
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
+		fmt.Println("listen UDP error", err)
+		os.Exit(1)
 		return err
 	}
 	// listener, err := netutil.NewStoppableListener(address,
 	// 	tlsConfig, t.stopper.ShouldStop())
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 	t.connStopper.RunWorker(func() {
 		// sync.WaitGroup's doc mentions that
 		// "Note that calls with a positive delta that occur when the counter is
@@ -280,8 +296,21 @@ func (t *UDP) Start() error {
 				closeFn()
 			})
 			t.connStopper.RunWorker(func() {
-				t.serveConn(*conn, addr)
-				closeFn()
+
+				err := t.serveConn(*conn, addr)
+				if err != nil {
+					address_2 := t.nhConfig.GetListenAddress()
+
+					addr_2, _ := t.get_udp_Addr(address_2)
+					conn_2, err_2 := net.ListenUDP("udp", addr)
+					if err_2 != nil {
+						fmt.Println("listen UDP error", err)
+						os.Exit(1)
+
+					}
+					t.serveConn(*conn_2, addr_2)
+					closeFn()
+				}
 			})
 		}
 	})
@@ -381,35 +410,48 @@ func writeMessage(conn net.UDPConn,
 	header.size = uint64(len(buf))
 	if !encrypted {
 		header.crc = crc32.ChecksumIEEE(buf)
+		fmt.Printf("header.crc when write: %d\n", header.crc)
 	}
 	headerBuf = header.encode(headerBuf)
 	tt := time.Now().Add(magicNumberDuration).Add(headerDuration)
 	if err := conn.SetWriteDeadline(tt); err != nil {
 		return err
 	}
-	if _, err := conn.Write(magicNumber[:]); err != nil {
+	if len(buf) > 1480 {
+		fmt.Printf("buf must be split, but JPF didn't handle ,exit")
+		os.Exit(1)
+	}
+	// if _, err := conn.Write(magicNumber[:]); err != nil {
+	// 	return err
+	// }
+	// if _, err := conn.Write(headerBuf); err != nil {
+	// 	return err
+	// }
+	// sent := 0
+	// bufSize := int(recvBufSize)
+	// for sent < len(buf) {
+	// 	if sent+bufSize > len(buf) {
+	// 		bufSize = len(buf) - sent
+	// 	}
+	// 	tt = time.Now().Add(writeDuration)
+	// 	if err := conn.SetWriteDeadline(tt); err != nil {
+	// 		return err
+	// 	}
+	// 	if _, err := conn.Write(buf[sent : sent+bufSize]); err != nil {
+	// 		return err
+	// 	}
+	// 	sent += bufSize
+	// }
+	// if sent != len(buf) {
+	// 	plog.Panicf("sent %d, buf len %d", sent, len(buf))
+	// }
+	//var to_send_buff []byte
+	merge := append(magicNumber[:], headerBuf...)
+	to_send_buff := append(merge, buf...)
+	fmt.Printf("header.crc when write: %d\n", header.crc)
+	fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
+	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
-	}
-	if _, err := conn.Write(headerBuf); err != nil {
-		return err
-	}
-	sent := 0
-	bufSize := int(recvBufSize)
-	for sent < len(buf) {
-		if sent+bufSize > len(buf) {
-			bufSize = len(buf) - sent
-		}
-		tt = time.Now().Add(writeDuration)
-		if err := conn.SetWriteDeadline(tt); err != nil {
-			return err
-		}
-		if _, err := conn.Write(buf[sent : sent+bufSize]); err != nil {
-			return err
-		}
-		sent += bufSize
-	}
-	if sent != len(buf) {
-		plog.Panicf("sent %d, buf len %d", sent, len(buf))
 	}
 	return nil
 }
