@@ -8,9 +8,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/foreeest/dragonboat/config"
 	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/lni/goutils/stringutil"
+	//"github.com/lni/goutils/stringutil"
 	"os"
-	"strings"
+	//"strings"
 	//"github.com/foreeest/dragonboat/logger"
 	"hash/crc32"
 
@@ -37,19 +37,19 @@ var _ raftio.ITransport = (*UDP)(nil)
 var (
 	// ErrBadMessage is the error returned to indicate the incoming message is
 	// corrupted.
-	ErrBadMessage       = errors.New("invalid message")
-	errPoisonReceived   = errors.New("poison received")
-	magicNumber         = [2]byte{0xAE, 0x7D}
-	poisonNumber        = [2]byte{0x0, 0x0}
-	payloadBufferSize   = settings.SnapshotChunkSize + 1024*128
-	tlsHandshackTimeout = 10 * time.Second
+	ErrBadMessage     = errors.New("invalid message")
+	errPoisonReceived = errors.New("poison received")
+	magicNumber       = [2]byte{0xAE, 0x7D}
+	poisonNumber      = [2]byte{0x0, 0x0}
+	payloadBufferSize = settings.SnapshotChunkSize + 1024*128
+	//tlsHandshackTimeout = 10 * time.Second
 	magicNumberDuration = 1 * time.Second
 	headerDuration      = 2 * time.Second
-	readDuration        = 5 * time.Second
-	writeDuration       = 5 * time.Second
-	keepAlivePeriod     = 10 * time.Second
-	perConnBufSize      = settings.Soft.PerConnectionSendBufSize
-	recvBufSize         = settings.Soft.PerConnectionRecvBufSize
+	// readDuration        = 5 * time.Second
+	// writeDuration       = 5 * time.Second
+	keepAlivePeriod = 10 * time.Second
+	perConnBufSize  = settings.Soft.PerConnectionSendBufSize
+	recvBufSize     = settings.Soft.PerConnectionRecvBufSize
 )
 
 const (
@@ -239,13 +239,14 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 		}
 	}
 }
-func parseAddress(addr string) (string, string, error) {
-	parts := strings.Split(addr, ":")
-	if len(parts) == 2 {
-		return parts[0], parts[1], nil
-	}
-	return "", "", errors.New("failed to get hostname")
-}
+
+//	func parseAddress(addr string) (string, string, error) {
+//		parts := strings.Split(addr, ":")
+//		if len(parts) == 2 {
+//			return parts[0], parts[1], nil
+//		}
+//		return "", "", errors.New("failed to get hostname")
+//	}
 func (t *UDP) Start() error {
 	address := t.nhConfig.GetListenAddress()
 	//tlsConfig, err := t.nhConfig.GetServerTLSConfig()
@@ -253,12 +254,12 @@ func (t *UDP) Start() error {
 
 	// listener, err := t.getConnection(address) //
 
-	hostname, _, _ := parseAddress(address)
-	if stringutil.HostnameRegex.MatchString(hostname) {
-		fmt.Printf("JPF didn't implement using hostname, please use ip and port,such as 127.0.0.1:10004")
-		os.Exit(1)
-		return nil
-	}
+	// hostname, _, _ := parseAddress(address)
+	// if !stringutil.IPV4Regex.MatchString(hostname) {
+	// 	fmt.Printf("JPF didn't implement using hostname, please use ip and port,such as 127.0.0.1:10004")
+	// 	os.Exit(1)
+	// 	return nil
+	// }
 	// if err != nil {
 	// 	return err
 	// }
