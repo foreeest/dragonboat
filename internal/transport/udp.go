@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"os"
-
 	"github.com/cockroachdb/errors"
 	"github.com/foreeest/dragonboat/config"
 	"github.com/foreeest/dragonboat/internal/settings"
-
+	"github.com/lni/goutils/stringutil"
+	"os"
+	"strings"
 	//"github.com/foreeest/dragonboat/logger"
 	"hash/crc32"
 
@@ -200,6 +200,7 @@ func (t *UDP) getConnection(
 
 func (t *UDP) get_udp_Addr(IPaddress_and_port string) (*net.UDPAddr, error) {
 	addr, err := net.ResolveUDPAddr("udp", IPaddress_and_port)
+	fmt.Printf("in get_udp_addr,after ResolveUDPAddr: IPaddress_and_port: %s\n", IPaddress_and_port)
 	if err != nil {
 		fmt.Println(err)
 		plog.Errorf("ResolveUDPAddr fail")
@@ -238,13 +239,60 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 		}
 	}
 }
-
+func parseAddress(addr string) (string, string, error) {
+	parts := strings.Split(addr, ":")
+	if len(parts) == 2 {
+		return parts[0], parts[1], nil
+	}
+	return "", "", errors.New("failed to get hostname")
+}
 func (t *UDP) Start() error {
 	address := t.nhConfig.GetListenAddress()
 	//tlsConfig, err := t.nhConfig.GetServerTLSConfig()
 	//不加密了
 
-	// listener, err := t.getConnection(address) //不加密了
+	// listener, err := t.getConnection(address) //
+
+	hostname, _, _ := parseAddress(address)
+	if stringutil.HostnameRegex.MatchString(hostname) {
+		fmt.Printf("JPF didn't implement using hostname, please use ip and port,such as 127.0.0.1:10004")
+		os.Exit(1)
+	}
+	// if err != nil {
+	// 	return err
+	// }
+	// // workaround the design bug in golang's net package.
+	// // https://github.com/golang/go/issues/9334?ts=2
+	// toListen := make([]string, 0) //
+	// if stringutil.HostnameRegex.MatchString(hostname) {
+	// 	ipList, err := net.LookupIP(hostname)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	added := make(map[string]struct{})
+	// 	for _, v := range ipList {
+	// 		// ipv6 address is ignored
+	// 		if v.To4() == nil {
+	// 			continue
+	// 		}
+	// 		if _, ok := added[string(v)]; !ok {
+	// 			toListen = append(toListen, fmt.Sprintf("%s:%s", v, port))
+	// 			added[string(v)] = struct{}{}
+	// 		}
+	// 	}
+	// } else if stringutil.IPV4Regex.MatchString(hostname) {
+	// 	toListen = append(toListen, address)
+	// }
+	// if len(toListen) > 1 {
+	// 	fmt.Printf("len(toListen) > 1 , but JPF didn't implement ,os.Exit(1),please use IPaddress and Port")
+	// 	os.Exit(1)
+	// }
+	// if len(toListen) < 1 {
+	// 	fmt.Printf("len(toListen) < 1 ,Impossible")
+	// 	os.Exit(1)
+	// }
+	// address_and_port_in_ip := toListen[0]
+	// addr, _ := t.get_udp_Addr(address_and_port_in_ip)
 	addr, _ := t.get_udp_Addr(address)
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
