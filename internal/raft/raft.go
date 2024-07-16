@@ -830,6 +830,7 @@ func (r *raft) broadcastReplicateMessage() {
 			r.sendReplicateMessage(nid)
 		}
 	}
+	// foreeest：现在只需要调用一次sendHeartbeatMessage，但是需要1byte来标注需要发给哪些node
 }
 
 func (r *raft) sendHeartbeatMessage(to uint64,
@@ -839,7 +840,7 @@ func (r *raft) sendHeartbeatMessage(to uint64,
 		To:       to,
 		Type:     pb.Heartbeat,
 		Commit:   commit,
-		Hint:     hint.Low,
+		Hint:     hint.Low, // hint是？
 		HintHigh: hint.High,
 	})
 }
@@ -848,8 +849,8 @@ func (r *raft) sendHeartbeatMessage(to uint64,
 // protocol.
 func (r *raft) broadcastHeartbeatMessage() {
 	r.mustBeLeader()
-	if r.readIndex.hasPendingRequest() {
-		ctx := r.readIndex.peepCtx()
+	if r.readIndex.hasPendingRequest() { // PendingRequest,应该是跟nonVotings相关的东西
+		ctx := r.readIndex.peepCtx() // not sure what is this
 		r.broadcastHeartbeatMessageWithHint(ctx)
 	} else {
 		r.broadcastHeartbeatMessageWithHint(pb.SystemCtx{})
@@ -860,9 +861,11 @@ func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
 	zeroCtx := pb.SystemCtx{}
 	for id, rm := range r.votingMembers() {
 		if id != r.replicaID {
-			r.sendHeartbeatMessage(id, ctx, rm.match)
+			r.sendHeartbeatMessage(id, ctx, rm.match) // rm维护远端节点的状态如Index；match，即匹配的
+			// 这里发的是匹配的和已经提交中的较小值
 		}
 	}
+	// foreeest：现在只需要调用一次sendHeartbeatMessage，但是需要1byte来标注需要发给哪些node
 	if ctx == zeroCtx {
 		for id, rm := range r.nonVotings {
 			r.sendHeartbeatMessage(id, zeroCtx, rm.match)

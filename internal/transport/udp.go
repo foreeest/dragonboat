@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/cockroachdb/errors"
 	"github.com/foreeest/dragonboat/config"
 	"github.com/foreeest/dragonboat/internal/settings"
+
 	//"github.com/lni/goutils/stringutil"
 	"os"
 	//"strings"
@@ -66,6 +68,7 @@ type requestHeader struct {
 	method uint16 //类型:raft 还是snapshot
 }
 
+// 就是把appl头塞进buffer，在本文件writeMessage调用
 func (h *requestHeader) encode(buf []byte) []byte {
 	if len(buf) < requestHeaderSize {
 		panic("input buf too small")
@@ -116,6 +119,7 @@ func readMessage_to_buff(conn net.UDPConn,
 	fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
 	return n, buffer, err
 }
+
 func readMessage(conn net.UDPConn,
 	header []byte, rbuf []byte, magicNum []byte, encrypted bool, addr *net.UDPAddr) (requestHeader, []byte, error) {
 	var buffer []byte
@@ -166,6 +170,7 @@ func readMessage(conn net.UDPConn,
 	return rheader, buf, nil
 }
 
+// what is the difference? see https://pkg.go.dev/net#UDPConn.WriteTo .其实只是一个是字符串，一个是UDPAddr对象而已
 func sendPoison(conn net.UDPConn, poison []byte, addr *net.UDPAddr) error {
 
 	if _, err := conn.WriteToUDP(poison, addr); err != nil {
@@ -173,6 +178,7 @@ func sendPoison(conn net.UDPConn, poison []byte, addr *net.UDPAddr) error {
 	}
 	return nil
 }
+
 func sendPoison_my_use_addr(conn net.UDPConn, poison []byte, addr net.Addr) error {
 
 	if _, err := conn.WriteTo(poison, addr); err != nil {

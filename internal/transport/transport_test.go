@@ -389,7 +389,7 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 			To:      2,
 			ShardID: 100,
 		}
-		done := trans.Send(msg)
+		done := trans.Send(msg) // 发送
 		if !done {
 			t.Errorf("failed to send message")
 		}
@@ -398,7 +398,7 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 	for i := 0; i < 200; i++ {
 		time.Sleep(100 * time.Millisecond)
 		count := handler.getRequestCount(100, 2)
-		plog.Infof("%d test messages received", count)
+		plog.Infof("%d test messages received", count) // over
 		if count == 20 {
 			done = true
 			break
