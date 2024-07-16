@@ -35,9 +35,29 @@ $ 2^{n} $ sendqueue Solution是解决什么问题的？具体来说这些send qu
 1. 目前transport.go纯没改，只有create函数那里TCP改成了UDP  
 2. 把time duration和deadline之类的删了  
 3. 去掉connection的封装了，没毛病，原来这层封装就不是太必要
+4. `udp_test.go`没毛病  
+5. snapshot应该收发都没处理
 
 ## udp.go开发 ##
 
 - **quetion**
 1. 是否需要仍需链接，tcp与udp二者的库的区别是  
 2. 可以从测试error追踪，整个看会比较费时间
+
+- **transport test的报错**
+1. start() 那里报`in udp.go close udp 127.0.0.1:26001: use of closed network connection`就说已经关了？然后这个报了贼多次是为啥  
+2. 还有一个read报的`read udp 127.0.0.1:26001: use of closed network connection` 
+3. 还有start开头的`listen UDP error read udp 127.0.0.1:26001: use of closed network connection`     
+4. 似乎每次输出的顺序有点差异，这是并发导致的吗？  
+5. 跑单步调试warning说`Too many goroutines, only loaded 1024`  
+
+编程参考：https://www.topgoer.com/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/socket%E7%BC%96%E7%A8%8B/UDP%E7%BC%96%E7%A8%8B.html  
+
+- udp与tcp库
+tcp用listen调用accept获取一个conn，然后用这个来收发  
+那udp直接拿一个listen用来收发，感觉也没问题，就是一个IP对应一个listen  
+先关注一下close操作吧，先不考虑不是close引起的报错  
+
+- solving
+是should stop停的，这是啥  
+其次为什么原来就没事   

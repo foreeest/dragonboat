@@ -42,6 +42,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -455,6 +456,7 @@ func (t *Transport) processMessages(remoteHost string,
 		idleTimer.Reset(idleTimeout)
 		select {
 		case <-t.stopper.ShouldStop():
+			fmt.Printf("quit from processMessage\n") // 还真走这里了
 			return nil
 		case <-idleTimer.C:
 			return nil

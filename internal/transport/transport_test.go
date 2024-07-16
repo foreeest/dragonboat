@@ -443,9 +443,15 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 func TestMessageCanBeSent(t *testing.T) {
 	fs := vfs.GetTestFS()
 	defer leaktest.AfterTest(t)()
-	testMessageCanBeSent(t, false, settings.LargeEntitySize+1, fs)
-	fmt.Printf("1 through")
-	os.Exit(1)
+	// testMessageCanBeSent(t, false, settings.LargeEntitySize+1, fs)
+	// fmt.Printf("1 through")
+	// os.Exit(1)
+	/*
+		PerConnectionSendBufSize:       2 * 1024 * 1024,
+		PerConnectionRecvBufSize:       2 * 1024 * 1024,
+	*/
+	testMessageCanBeSent(t, false, 1, fs)
+	testMessageCanBeSent(t, true, 1, fs)
 	testMessageCanBeSent(t, false, recvBufSize/2, fs)
 	testMessageCanBeSent(t, false, recvBufSize+1, fs)
 	testMessageCanBeSent(t, false, perConnBufSize+1, fs)

@@ -115,14 +115,15 @@ func readMessage_to_buff(conn net.UDPConn,
 		//continue
 		return n, buffer, err
 	}
-	fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n])
+	// fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n]) // 先别打这玩意出来，为啥这玩意的结尾有串localhost:26001?
+	fmt.Printf("Received %d bytes from %s\n", n, remoteAddr)
 	fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
 	return n, buffer, err
 }
 
 func readMessage(conn net.UDPConn,
 	header []byte, rbuf []byte, magicNum []byte, encrypted bool, addr *net.UDPAddr) (requestHeader, []byte, error) {
-	var buffer []byte
+	var buffer []byte           // 先整条信息读出来，再逐步分解
 	buffer = make([]byte, 1500) //数据报最大大小是1500
 	//gpt4o:当缓冲区 p 的大小大于从网络连接中读取的数据时，不会发生错误或异常，只是缓冲区 p 的一部分会被使用来存储读取到的数据，其余部分保持不变
 	n, buffer, err := readMessage_to_buff(conn, buffer)
@@ -233,6 +234,7 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 				return nil
 			}
 			t.requestHandler(batch)
+			fmt.Printf("have read a packet and handle!\n")
 		} else {
 			chunk := pb.Chunk{}
 			if err := chunk.Unmarshal(buf); err != nil {
@@ -305,7 +307,7 @@ func (t *UDP) Start() error {
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		fmt.Println("listen UDP error", err)
-		os.Exit(1)
+		os.Exit(1) // 直接退出
 		return err
 	}
 	// listener, err := netutil.NewStoppableListener(address,
@@ -340,7 +342,9 @@ func (t *UDP) Start() error {
 					default:
 					}
 					if err := conn.Close(); err != nil {
-						plog.Errorf("failed to close the connection %v", err)
+						plog.Errorf("failed to close the connection when Start() in udp.go %v ...", err)
+					} else {
+						fmt.Printf("\nClose safely\n\n") // 没到这步的
 					}
 				})
 			}
@@ -354,7 +358,8 @@ func (t *UDP) Start() error {
 			t.connStopper.RunWorker(func() {
 
 				err := t.serveConn(*conn, addr)
-				if err != nil {
+				plog.Errorf("serveConn err is %v", err) // foreeest added
+				if err != nil {                         // why add this?
 					address_2 := t.nhConfig.GetListenAddress()
 
 					addr_2, _ := t.get_udp_Addr(address_2)
@@ -366,6 +371,8 @@ func (t *UDP) Start() error {
 					}
 					t.serveConn(*conn_2, addr_2)
 					closeFn()
+				} else {
+					closeFn() // foreeest added
 				}
 			})
 		}
@@ -441,8 +448,9 @@ func NewUDPConnection(UDPconn net.UDPConn, encrypted bool) *UDPConnection {
 
 // Close closes the TCPConnection instance.
 func (c *UDPConnection) Close() {
+	fmt.Printf("Do the Close() in UDPConnection.Close()\n")
 	if err := c.conn.Close(); err != nil {
-		plog.Errorf("failed to close the connection %v", err)
+		plog.Errorf("Hi! failed to close the connection %v", err)
 	}
 }
 
@@ -461,7 +469,7 @@ func (c *UDPConnection) SendMessageBatch(batch pb.MessageBatch) error {
 }
 
 func writeMessage(conn net.UDPConn,
-	header requestHeader, buf []byte, headerBuf []byte, encrypted bool) error { //先弃用加密?
+	header requestHeader, buf []byte, headerBuf []byte, encrypted bool) error { //先弃用加密?加密在哪里看
 
 	header.size = uint64(len(buf))
 	if !encrypted {
@@ -505,7 +513,7 @@ func writeMessage(conn net.UDPConn,
 	merge := append(magicNumber[:], headerBuf...)
 	to_send_buff := append(merge, buf...)
 	fmt.Printf("header.crc when write: %d\n", header.crc)
-	fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
+	fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d\n", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
 	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
 	}
@@ -536,7 +544,7 @@ func NewUDPSnapshotConnection(conn net.UDPConn,
 func (c *UDPSnapshotConnection) Close() {
 	defer func() {
 		if err := c.conn.Close(); err != nil {
-			plog.Debugf("failed to close the connection %v", err)
+			plog.Debugf("hey! failed to close the connection %v", err)
 		}
 	}()
 	Addr_remote := c.conn.RemoteAddr()
