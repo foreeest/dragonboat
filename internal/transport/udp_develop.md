@@ -40,6 +40,8 @@ $ 2^{n} $ sendqueue Solution是解决什么问题的？具体来说这些send qu
 
 ## udp.go开发 ##
 
+### 初步测试 ###
+
 - **quetion**
 1. 是否需要仍需链接，tcp与udp二者的库的区别是  
 2. 可以从测试error追踪，整个看会比较费时间
@@ -59,5 +61,25 @@ tcp用listen调用accept获取一个conn，然后用这个来收发
 先关注一下close操作吧，先不考虑不是close引起的报错  
 
 - solving
-是should stop停的，这是啥  
-其次为什么原来就没事   
+1. use of closed connection问题是shouldstop停的，这是啥，其次为什么原来就没事   
+2. 修改：改了一行closeFn()，但是感觉没什么影响  
+3. 目前找到会产生过多goroutine的原因，是Start()的for没被阻塞
+
+### Solution ###
+
+- 设计
+*其实就考虑udp库和承接好transport.go即可，即能否在不改transport.go的前提下写出可用的udp.go*  
+
+1. VR的udp用的是同一个端口12345；dragonboat example中一个nodehost也就一个port，三个分别时63001、63002、63003
+2. transport.go收信息用Start()，一个for循环接受连接，每个建立的连接有一个goroutine即serveConn()来读
+3. transport.go发信息用send()，后者用一个sq将信息传给一个goroutine即processMessages()来写
+4. 按照send()的写法，每个key有一个sq，对应一个processMessages()，对应一个conn，连接到Start()的一个serveConn()
+而每个**shard**和node映射到唯一的key？(这个有点难确认又得一路追踪，主要跟Registry.Resolve()相关；但见dragonboat多shard例子中并没有多ports) 总的来说，每个shard、node映射到一个key，也即映射到一个sq，也即一个收一个发goroutine；udp的发被transport.go写死了有多个goroutine，udp的收可以只要一个goroutine
+5. 按照transport.go的写法来:connectAndProcess原本是tcp的Dial三次握手，这里就udp的Dial绑定端口，processMessage不变，这样原来的每个tcp Connection仍然有一个udp对应发送goroutine；Start()因为ListenUDP不阻塞，我们不用for+Accept来动态增减connection，而是只Listen一次，然后根据ReadFromUdp读到的addr来分发
+6. poison还有必要存在吗？
+7. 只有一个线程处理会有什么问题吗？就是serveConn这东西，他是某个连接调用的，还是不知道哪个连接调用的应该没有区别吧
+
+- 开发
+
+1. 先改了Start()没有第一个问题了
+2. 有个疑问，这样修改，一旦Close了，就整个通信模块就用不了了？

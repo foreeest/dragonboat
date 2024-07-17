@@ -66,7 +66,7 @@ func (n *Registry) Add(shardID uint64, replicaID uint64, target string) {
 	if n.validate != nil && !n.validate(target) {
 		plog.Panicf("invalid target %s", target)
 	}
-	key := raftio.GetNodeInfo(shardID, replicaID)
+	key := raftio.GetNodeInfo(shardID, replicaID) // raftio/logdb
 	v, ok := n.addr.LoadOrStore(key, target)
 	if ok {
 		if v.(string) != target {
@@ -80,7 +80,7 @@ func (n *Registry) getConnectionKey(addr string, shardID uint64) string {
 	if n.partitioner == nil {
 		return addr
 	}
-	return fmt.Sprintf("%s-%d", addr, n.partitioner.GetPartitionID(shardID))
+	return fmt.Sprintf("%s-%d", addr, n.partitioner.GetPartitionID(shardID)) // shardID % streamConnections
 }
 
 // Remove removes a remote from the node registry.

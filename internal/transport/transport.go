@@ -221,7 +221,7 @@ func NewTransport(nhConfig config.NodeHostConfig,
 	}
 	chunks := NewChunk(t.handleRequest,
 		t.snapshotReceived, t.dir, t.nhConfig.GetDeploymentID(), fs)
-	t.trans = create(nhConfig, t.handleRequest, chunks.Add)
+	t.trans = create(nhConfig, t.handleRequest, chunks.Add) // 只有一个UDP
 	t.chunks = chunks
 	t.ctx, t.cancel = context.WithCancel(context.Background())
 	t.mu.queues = make(map[string]sendQueue)
@@ -237,7 +237,7 @@ func NewTransport(nhConfig config.NodeHostConfig,
 	t.metrics = newTransportMetrics(true, msgConn, ssCount)
 
 	plog.Infof("transport type: %s", t.trans.Name())
-	if err := t.trans.Start(); err != nil {
+	if err := t.trans.Start(); err != nil { // 这里是收信息的总函数，Start()
 		plog.Errorf("transport failed to start %v", err)
 		if cerr := t.trans.Close(); cerr != nil {
 			plog.Errorf("failed to close the transport module %v", cerr)
@@ -390,7 +390,7 @@ func (t *Transport) send(req pb.Message) (bool, failedSend) {
 			if !t.connectAndProcess(addr, sq, from, affected) {
 				t.notifyUnreachable(addr, affected)
 			}
-			shutdownQueue()
+			shutdownQueue() // 通信结束，删掉sq
 		})
 	}
 	if sq.rateLimited() {
@@ -423,7 +423,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 				t.sourceID, remoteHost, err)
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() // 跑完processMessage 来这Close
 		breaker.Success()
 		if successes == 0 || consecFailures > 0 {
 			plog.Debugf("message streaming to %s established", remoteHost)
@@ -489,7 +489,7 @@ func (t *Transport) processMessages(remoteHost string,
 				twoBatch = true
 				batch.Requests = requests[:len(requests)-1]
 			}
-			if err := t.sendMessageBatch(conn, batch); err != nil {
+			if err := t.sendMessageBatch(conn, batch); err != nil { // sendMessageBatch调用write message
 				plog.Errorf("send batch failed, target %s (%v), %d",
 					remoteHost, err, len(batch.Requests))
 				return err

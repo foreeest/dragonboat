@@ -223,7 +223,7 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 	header := make([]byte, requestHeaderSize)
 	tbuf := make([]byte, payloadBufferSize)
 	for {
-
+		// fmt.Printf("2\n")
 		rheader, buf, err := readMessage(conn, header, tbuf, magicNum, t.encrypted, addr)
 		if err != nil {
 			return err
@@ -303,7 +303,7 @@ func (t *UDP) Start() error {
 	// }
 	// address_and_port_in_ip := toListen[0]
 	// addr, _ := t.get_udp_Addr(address_and_port_in_ip)
-	addr, _ := t.get_udp_Addr(address)
+	addr, _ := t.get_udp_Addr(address) // get函数：从str到UDPConn
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		fmt.Println("listen UDP error", err)
@@ -315,7 +315,7 @@ func (t *UDP) Start() error {
 	// if err != nil {
 	// 	return err
 	// }
-	t.connStopper.RunWorker(func() {
+	t.connStopper.RunWorker(func() { // 这白开一个goroutine有啥用呢？
 		// sync.WaitGroup's doc mentions that
 		// "Note that calls with a positive delta that occur when the counter is
 		//  zero must happen before a Wait."
@@ -324,58 +324,89 @@ func (t *UDP) Start() error {
 		// positive delta has never been called.
 		<-t.connStopper.ShouldStop()
 	})
+	// t.stopper.RunWorker(func() {
+	// 	for {
+	// 		// conn, err := listener.Accept()
+	// 		// if err != nil {
+	// 		// 	if err == netutil.ErrListenerStopped {
+	// 		// 		return
+	// 		// 	}
+	// 		// 	panic(err)
+	// 		// }
+	// 		// fmt.Print("1\n")
+	// 		var once sync.Once
+	// 		connCloseCh := make(chan struct{})
+	// 		closeFn := func() {
+	// 			once.Do(func() {
+	// 				select {
+	// 				case connCloseCh <- struct{}{}:
+	// 				default:
+	// 				}
+	// 				if err := conn.Close(); err != nil {
+	// 					plog.Errorf("failed to close the connection when Start() in udp.go %v ...", err)
+	// 				} else {
+	// 					fmt.Printf("\nClose safely\n\n") // 没到这步的
+	// 				}
+	// 			})
+	// 		}
+	// 		t.connStopper.RunWorker(func() {
+	// 			select {
+	// 			case <-t.stopper.ShouldStop():
+	// 			case <-connCloseCh:
+	// 			}
+	// 			closeFn()
+	// 		})
+	// 		t.connStopper.RunWorker(func() {
+
+	// 			err := t.serveConn(*conn, addr)
+	// 			plog.Errorf("serveConn err is %v", err) // foreeest added
+	// 			if err != nil {                         // why add this?
+	// 				address_2 := t.nhConfig.GetListenAddress()
+
+	// 				addr_2, _ := t.get_udp_Addr(address_2)
+	// 				conn_2, err_2 := net.ListenUDP("udp", addr)
+	// 				if err_2 != nil {
+	// 					fmt.Println("listen UDP error", err)
+	// 					os.Exit(1)
+
+	// 				}
+	// 				t.serveConn(*conn_2, addr_2)
+	// 				closeFn()
+	// 			} else {
+	// 				closeFn() // foreeest added
+	// 			}
+	// 		})
+	// 	}
+	// })
+	// foreeest modification
 	t.stopper.RunWorker(func() {
-		for {
-			// conn, err := listener.Accept()
-			// if err != nil {
-			// 	if err == netutil.ErrListenerStopped {
-			// 		return
-			// 	}
-			// 	panic(err)
-			// }
-			var once sync.Once
-			connCloseCh := make(chan struct{})
-			closeFn := func() {
-				once.Do(func() {
-					select {
-					case connCloseCh <- struct{}{}:
-					default:
-					}
-					if err := conn.Close(); err != nil {
-						plog.Errorf("failed to close the connection when Start() in udp.go %v ...", err)
-					} else {
-						fmt.Printf("\nClose safely\n\n") // 没到这步的
-					}
-				})
-			}
-			t.connStopper.RunWorker(func() {
+		var once sync.Once
+		connCloseCh := make(chan struct{})
+		closeFn := func() {
+			once.Do(func() {
 				select {
-				case <-t.stopper.ShouldStop():
-				case <-connCloseCh:
+				case connCloseCh <- struct{}{}:
+				default:
 				}
-				closeFn()
-			})
-			t.connStopper.RunWorker(func() {
-
-				err := t.serveConn(*conn, addr)
-				plog.Errorf("serveConn err is %v", err) // foreeest added
-				if err != nil {                         // why add this?
-					address_2 := t.nhConfig.GetListenAddress()
-
-					addr_2, _ := t.get_udp_Addr(address_2)
-					conn_2, err_2 := net.ListenUDP("udp", addr)
-					if err_2 != nil {
-						fmt.Println("listen UDP error", err)
-						os.Exit(1)
-
-					}
-					t.serveConn(*conn_2, addr_2)
-					closeFn()
+				if err := conn.Close(); err != nil {
+					plog.Errorf("failed to close the connection when Start() in udp.go %v ...", err)
 				} else {
-					closeFn() // foreeest added
+					fmt.Printf("\nClose safely\n\n") // 没到这步的
 				}
 			})
 		}
+		t.connStopper.RunWorker(func() {
+			select {
+			case <-t.stopper.ShouldStop():
+			case <-connCloseCh:
+			}
+			closeFn()
+		})
+		t.connStopper.RunWorker(func() {
+			err := t.serveConn(*conn, addr)
+			plog.Errorf("serveConn err is %v", err)
+			closeFn()
+		})
 	})
 	return nil
 }
