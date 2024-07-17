@@ -82,4 +82,8 @@ tcp用listen调用accept获取一个conn，然后用这个来收发
 - 开发
 
 1. 先改了Start()没有第一个问题了
-2. 有个疑问，这样修改，一旦Close了，就整个通信模块就用不了了？
+2. 有个疑问，这样修改，一旦Close了，就整个通信模块就用不了了？  
+3. 两个close一个是写的，一个是读的，写的close了读的还读就报错`Error reading from UDP: read udp 127.0.0.1:26001: use of closed network connection`  
+4. 可能fmt输出的顺序和plog不一致？
+5. 去掉了非error的fmt的输出
+6. `n, remoteAddr, err := conn.ReadFromUDP(buffer)` declared and not used 居然是err  

@@ -108,16 +108,18 @@ func (h *requestHeader) decode(buf []byte) bool {
 func readMessage_to_buff(conn net.UDPConn,
 	buffer []byte) (int, []byte, error) {
 
-	n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
+	// n, remoteAddr, err := conn.ReadFromUDP(buffer) //con已经是dial过的
+	n, _, err := conn.ReadFromUDP(buffer)
 	if err != nil {
-		fmt.Println("Error reading from UDP:", err)
+		//fmt.Println("Error reading from UDP:", err)
+		plog.Errorf("Error reading from UDP: %v", err)
 		//os.Exit(1)
 		//continue
 		return n, buffer, err
 	}
 	// fmt.Printf("Received %d bytes from %s: %s\n", n, remoteAddr, buffer[:n]) // 先别打这玩意出来，为啥这玩意的结尾有串localhost:26001?
-	fmt.Printf("Received %d bytes from %s\n", n, remoteAddr)
-	fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
+	// fmt.Printf("Received %d bytes from %s\n", n, remoteAddr)
+	// fmt.Printf("when read_to_buff: crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize: n]) : %d\n", crc32.ChecksumIEEE(buffer[len(magicNumber)+requestHeaderSize:n]))
 	return n, buffer, err
 }
 
@@ -163,8 +165,8 @@ func readMessage(conn net.UDPConn,
 	}
 	buf = buffer[requestHeaderSize+len(magicNum) : n] //这里到n，有没有错？   干！我是傻逼，这里忘记加len(magicNum)
 	if !encrypted && crc32.ChecksumIEEE(buf) != rheader.crc {
-		fmt.Printf("crc32.ChecksumIEEE(buf):%d\n", crc32.ChecksumIEEE(buf))
-		fmt.Printf("rheader.crc:%d\n", rheader.crc)
+		// fmt.Printf("crc32.ChecksumIEEE(buf):%d\n", crc32.ChecksumIEEE(buf))
+		// fmt.Printf("rheader.crc:%d\n", rheader.crc)
 		plog.Errorf("invalid payload checksum")
 		return requestHeader{}, nil, ErrBadMessage
 	}
@@ -207,7 +209,7 @@ func (t *UDP) getConnection(
 
 func (t *UDP) get_udp_Addr(IPaddress_and_port string) (*net.UDPAddr, error) {
 	addr, err := net.ResolveUDPAddr("udp", IPaddress_and_port)
-	fmt.Printf("in get_udp_addr,after ResolveUDPAddr: IPaddress_and_port: %s\n", IPaddress_and_port)
+	// fmt.Printf("in get_udp_addr,after ResolveUDPAddr: IPaddress_and_port: %s\n", IPaddress_and_port)
 	if err != nil {
 		fmt.Println(err)
 		plog.Errorf("ResolveUDPAddr fail")
@@ -234,7 +236,7 @@ func (t *UDP) serveConn(conn net.UDPConn, addr *net.UDPAddr) error {
 				return nil
 			}
 			t.requestHandler(batch)
-			fmt.Printf("have read a packet and handle!\n")
+			// fmt.Printf("have read a packet and handle!\n")
 		} else {
 			chunk := pb.Chunk{}
 			if err := chunk.Unmarshal(buf); err != nil {
@@ -391,7 +393,8 @@ func (t *UDP) Start() error {
 				if err := conn.Close(); err != nil {
 					plog.Errorf("failed to close the connection when Start() in udp.go %v ...", err)
 				} else {
-					fmt.Printf("\nClose safely\n\n") // 没到这步的
+					// fmt.Printf("\nClose safely\n\n") // 没到这步的，不对啊，有这个
+					plog.Infof("Close safely\n")
 				}
 			})
 		}
@@ -479,7 +482,7 @@ func NewUDPConnection(UDPconn net.UDPConn, encrypted bool) *UDPConnection {
 
 // Close closes the TCPConnection instance.
 func (c *UDPConnection) Close() {
-	fmt.Printf("Do the Close() in UDPConnection.Close()\n")
+	// fmt.Printf("Do the Close() in UDPConnection.Close()\n")
 	if err := c.conn.Close(); err != nil {
 		plog.Errorf("Hi! failed to close the connection %v", err)
 	}
@@ -505,7 +508,7 @@ func writeMessage(conn net.UDPConn,
 	header.size = uint64(len(buf))
 	if !encrypted {
 		header.crc = crc32.ChecksumIEEE(buf)
-		fmt.Printf("header.crc when write: %d\n", header.crc)
+		// fmt.Printf("header.crc when write: %d\n", header.crc)
 	}
 	headerBuf = header.encode(headerBuf)
 	tt := time.Now().Add(magicNumberDuration).Add(headerDuration)
@@ -543,8 +546,8 @@ func writeMessage(conn net.UDPConn,
 	//var to_send_buff []byte
 	merge := append(magicNumber[:], headerBuf...)
 	to_send_buff := append(merge, buf...)
-	fmt.Printf("header.crc when write: %d\n", header.crc)
-	fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d\n", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
+	// fmt.Printf("header.crc when write: %d\n", header.crc)
+	// fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d\n", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
 	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
 	}
