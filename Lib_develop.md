@@ -13,7 +13,7 @@ $ cd dragonboat
 $ git branch -a # 查看所有本地和远程的仓库分支
 $ git checkout v2 # 再输上述指令可以看到*号在v2这里
 ```
-进行开发，完成开发后准备提交
+进行开发，完成开发后准备提交   
 **if** 只是提交暂存修改，并不发布tag  
 ```shell
 $ git add .
@@ -51,7 +51,7 @@ $ git push origin v2.0.0
 ```txt
 replace github.com/lni/dragonboat/v4 => github.com/foreeest/dragonboat/v2 v2.0.0
 ```
-最后，应该就ok了
+最后执行指令即可  
 ```shell
 $ go mod tidy
 ```
@@ -81,7 +81,7 @@ $ go get github.com/foreeest/dragonboat@v1.0.0
 $ go build
 ```
 
-4. 如果原来的库依赖原作者库，也可以使用
+4. 如果原来的库依赖原作者库，**不可以**使用如下解决方案，原因暂时不明   
 
 ```shell
 # replace github.com/lni/dragonboat/v4 => github.com/foreeest/dragonboat v1.0.0
