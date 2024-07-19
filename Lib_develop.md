@@ -9,6 +9,7 @@
 
 ```shell
 $ git clone https://github.com/foreeest/dragonboat
+$ cd dragonboat
 $ git branch -a # 查看所有本地和远程的仓库分支
 $ git checkout v2 # 再输上述指令可以看到*号在v2这里
 ```
