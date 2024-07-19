@@ -194,6 +194,7 @@ type Transport struct {
 	sourceID     string
 	nhConfig     config.NodeHostConfig
 	jobs         uint64
+	addressMap 	 map[string]uint64//键为IPV4地址:端口号,值为在bitset中第几位
 }
 
 var _ ITransport = (*Transport)(nil)
@@ -218,6 +219,11 @@ func NewTransport(nhConfig config.NodeHostConfig,
 		fs:         fs,
 		msgHandler: handler,
 	}
+	t.addressMap := map[string]uint64{
+		"127.0.0.1:8898":0,  //这是示例
+	}
+
+
 	chunks := NewChunk(t.handleRequest,
 		t.snapshotReceived, t.dir, t.nhConfig.GetDeploymentID(), fs)
 	t.trans = create(nhConfig, t.handleRequest, chunks.Add)
@@ -350,21 +356,47 @@ func (t *Transport) Send(req pb.MY_Message) bool {
 	}
 	return v
 }
+type BroadcastKey struct {
+    ShardID    uint64
+    ToReplicaIDs []uint64
+}
 
+// 将 BroadcastKey 转换为唯一的字符串表示形式
+func (bk *BroadcastKey) String() string {
+    // 将 ReplicaIDs 排序以确保唯一性
+    sort.Slice(bk.ToReplicaIDs, func(i, j int) bool {
+        return bk.ToReplicaIDs[i] < bk.ToReplicaIDs[j]
+    })
+    return fmt.Sprintf("%d-%v", bk.ShardID, bk.ToReplicaIDs)
+}
 func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 	if req.Type == pb.InstallSnapshot {
 		panic("snapshot message must be sent via its own channel.")
 	}
-	//JPF: here will be a loop ??
-
-	toReplicaID := req.To[0]
-
+	
 	shardID := req.ShardID
 	from := req.From
-	addr, key, err := t.resolver.Resolve(shardID, toReplicaID) //// IResolver converts the (shard id, replica id) tuple to network address.
+
+	broadcastkey := BroadcastKey{
+		ShardID:	req.ShardID,
+		ReplicaIDs:		req.To
+	}
+	var bitset uint64
+	bitset = 0
+	for i = 0;i<len(req.To);i++{
+		addr_0, _ , err := t.resolver.Resolve(shardID, toReplicaID[i]) 
+		bitNumber, ok := t.addressMap[addr_0]
+		if(!ok){
+			fmt.printf("error: addr return by transport.resolver.Resolve(shardID, toReplicaID) is not in transport.addressMap")
+		}
+		bitset = bitset | 1<<bitNumber
+	}
+	addr, _ , err := t.resolver.Resolve(shardID, toReplicaID[0]) //// IResolver converts the (shard id, replica id) tuple to network address.
+	//这里的addr不重要，只是为了给后面传入参数而已
 	if err != nil {
 		return false, unknownTarget
 	}
+	key := broadcastKey.String()
 	// fail fast
 	if !t.GetCircuitBreaker(addr).Ready() {
 		t.metrics.messageConnectionFailure()
@@ -389,7 +421,7 @@ func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 		}
 		t.stopper.RunWorker(func() {
 			affected := make(nodeMap)
-			if !t.connectAndProcess(addr, sq, from, affected) {
+			if !t.connectAndProcess(addr, sq, from, affected,bitset) {
 				t.notifyUnreachable(addr, affected)
 			}
 			shutdownQueue()
@@ -413,7 +445,7 @@ func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 // connectAndProcess returns a boolean value indicating whether it is stopped
 // gracefully when the system is being shutdown
 func (t *Transport) connectAndProcess(remoteHost string,
-	sq sendQueue, from uint64, affected nodeMap) bool {
+	sq sendQueue, from uint64, affected nodeMap,bitset uint64) bool {
 	breaker := t.GetCircuitBreaker(remoteHost)
 	successes := breaker.Successes()
 	consecFailures := breaker.ConsecFailures()
@@ -431,7 +463,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 			plog.Debugf("message streaming to %s established", remoteHost)
 			t.sysEvents.ConnectionEstablished(remoteHost, false)
 		}
-		return t.processMessages(remoteHost, sq, conn, affected)
+		return t.processMessages(remoteHost, sq, conn, affected,bitset)
 	}(); err != nil {
 		plog.Warningf("breaker %s to %s failed, connect and process failed: %s",
 			t.sourceID, remoteHost, err.Error())
@@ -444,7 +476,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 }
 
 func (t *Transport) processMessages(remoteHost string,
-	sq sendQueue, conn raftio.IConnection, affected nodeMap) error {
+	sq sendQueue, conn raftio.IConnection, affected nodeMap,bitset uint64) error {
 	idleTimer := time.NewTimer(idleTimeout)
 	defer idleTimer.Stop()
 	sz := uint64(0)
@@ -490,14 +522,14 @@ func (t *Transport) processMessages(remoteHost string,
 				twoBatch = true
 				batch.Requests = requests[:len(requests)-1]
 			}
-			if err := t.sendMessageBatch(conn, batch); err != nil {
+			if err := t.sendMessageBatch(conn, batch,bitset); err != nil {
 				plog.Errorf("send batch failed, target %s (%v), %d",
 					remoteHost, err, len(batch.Requests))
 				return err
 			}
 			if twoBatch {
 				batch.Requests = []pb.MY_Message{requests[len(requests)-1]}
-				if err := t.sendMessageBatch(conn, batch); err != nil {
+				if err := t.sendMessageBatch(conn, batch, bitset); err != nil {
 					plog.Errorf("send batch failed, taret node %s (%v), %d",
 						remoteHost, err, len(batch.Requests))
 					return err
@@ -522,15 +554,15 @@ func lazyFree(reqs []pb.MY_Message,
 }
 
 func (t *Transport) sendMessageBatch(conn raftio.IConnection,
-	batch pb.MessageBatch) error {
+	batch pb.MessageBatch,bitset uint64) error {
 	if f := t.preSendBatch.Load(); f != nil {
 		updated, shouldSend := f.(SendMessageBatchFunc)(batch)
 		if !shouldSend {
 			return errBatchSendSkipped
 		}
-		return conn.SendMessageBatch(updated)
+		return conn.SendMessageBatch(updated,bitset)
 	}
-	if err := conn.SendMessageBatch(batch); err != nil {
+	if err := conn.SendMessageBatch(batch,bitset); err != nil {
 		t.metrics.messageSendFailure(uint64(len(batch.Requests)))
 		return err
 	}
