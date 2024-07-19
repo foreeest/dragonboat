@@ -2,6 +2,16 @@
 
 ## 库管理 ##
 
+- 版本管理
+
+```shell
+$ git checkout master
+$ git add .
+$ git commit -m "whatever"
+$ git tag -a v1.0.0 -m "whatever"
+$ git push origin master
+$ git push origin v1.0.0
+```
 
 - 远程与本地
 
@@ -24,13 +34,16 @@ $ go mod init main
 $ go mod tidy
 ```
 else  
+确保你的`@`前的url和github上你想拉的仓库的go.mod第一行**module**相同，`@`后版本号与github仓库页面左上部分tag相同
+```shell
+$ go get github.com/foreeest/dragonboat@v1.0.0
+```
 
+3. 重新编译
 
-1. 重新编译
 ```shell
 $ go build
 ```
-
 
 
 ## TODO ##
