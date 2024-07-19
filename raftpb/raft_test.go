@@ -21,8 +21,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/foreeest/dragonboat/client"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4/client"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
 func TestStateMachineTypeHaveExpectedValues(t *testing.T) {
@@ -322,11 +322,13 @@ func TestEntryBatchSizeUpperLimit(t *testing.T) {
 	}
 }
 
-func getMaxSizedMsg() Message {
+func getMaxSizedMsg() MY_Message {
 	max64 := uint64(math.MaxUint64)
-	msg := Message{
+	var to_list []uint64
+	to_list = append(to_list, max64)
+	msg := MY_Message{
 		Type:     NoOP,
-		To:       max64,
+		To:       to_list,
 		From:     max64,
 		ShardID:  max64,
 		Term:     max64,
@@ -362,7 +364,7 @@ func TestMessageSizeUpperLimit(t *testing.T) {
 	if msg.Size() > msg.SizeUpperLimit() {
 		t.Errorf("size > size upper limit")
 	}
-	msg2 := Message{}
+	msg2 := MY_Message{}
 	if msg2.Size() > msg2.SizeUpperLimit() {
 		t.Errorf("size > size upper limit")
 	}
@@ -534,7 +536,7 @@ func TestMessageCanDrop(t *testing.T) {
 		{RateLimit, true},
 	}
 	for idx, tt := range tests {
-		m := Message{Type: tt.t}
+		m := MY_Message{Type: tt.t}
 		if m.CanDrop() != tt.canDrop {
 			t.Errorf("%d, can drop %t, want %t", idx, m.CanDrop(), tt.canDrop)
 		}

@@ -39,8 +39,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/foreeest/dragonboat/config"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func ne(err error, t *testing.T) {
@@ -51,7 +51,7 @@ func ne(err error, t *testing.T) {
 
 // Campaign starts the campaign procedure.
 func (p *Peer) Campaign() {
-	if err := p.raft.Handle(pb.Message{Type: pb.Election}); err != nil {
+	if err := p.raft.Handle(pb.MY_Message{Type: pb.Election}); err != nil {
 		panic(err)
 	}
 }
@@ -78,7 +78,7 @@ func TestRaftAPINodeStep(t *testing.T) {
 		// stepping on non-local messages should be fine
 		if !isLocalMessageType(msgt) &&
 			msgt != pb.SnapshotReceived && msgt != pb.TimeoutNow {
-			ne(rawNode.Handle(pb.Message{Type: msgt, Term: rawNode.raft.term}), t)
+			ne(rawNode.Handle(pb.MY_Message{Type: msgt, Term: rawNode.raft.term}), t)
 		}
 	}
 }
@@ -395,8 +395,8 @@ func TestRaftAPINotifyRaftLastApplied(t *testing.T) {
 }
 
 func TestRaftAPIReadIndex(t *testing.T) {
-	msgs := []pb.Message{}
-	appendStep := func(r *raft, m pb.Message) error {
+	msgs := []pb.MY_Message{}
+	appendStep := func(r *raft, m pb.MY_Message) error {
 		msgs = append(msgs, m)
 		return nil
 	}
@@ -539,7 +539,7 @@ func TestRaftAPILaunch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	ud.Messages = nil
+	ud.My_Messages = nil
 	if !reflect.DeepEqual(ud, wants[0]) {
 		t.Fatalf("#%d: g = %+v,\n             w   %+v", 1, ud, wants[0])
 	} else {
@@ -568,7 +568,7 @@ func TestRaftAPILaunch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	ud.Messages = nil
+	ud.My_Messages = nil
 	if !reflect.DeepEqual(ud, wants[1]) {
 		t.Errorf("#%d: g = %+v,\n             w   %+v", 2, ud, wants[1])
 	} else {
@@ -611,7 +611,7 @@ func TestRaftAPIRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	ud.Messages = nil
+	ud.My_Messages = nil
 	if !reflect.DeepEqual(ud, want) {
 		t.Errorf("g = %+v,\n             w   %+v", ud, want)
 	}
@@ -656,7 +656,7 @@ func TestRaftAPIRestartFromSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	ud.Messages = nil
+	ud.My_Messages = nil
 	if !reflect.DeepEqual(ud, want) {
 		t.Errorf("g = %+v,\n             w   %+v", ud, want)
 	} else {
@@ -676,7 +676,7 @@ func TestRaftAPIStepOnLocalMessageWillPanic(t *testing.T) {
 	}()
 	storage := NewTestLogDB()
 	p := Launch(newTestConfig(1, 10, 1), storage, nil, []PeerAddress{{ReplicaID: 1}}, true, true)
-	ne(p.Handle(pb.Message{Type: pb.LocalTick}), t)
+	ne(p.Handle(pb.MY_Message{Type: pb.LocalTick}), t)
 }
 
 func TestRaftAPIGetUpdateCommit(t *testing.T) {

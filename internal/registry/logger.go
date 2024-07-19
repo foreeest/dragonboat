@@ -18,7 +18,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/foreeest/dragonboat/logger"
+	"github.com/lni/dragonboat/v4/logger"
 )
 
 type gossipLogWriter struct {

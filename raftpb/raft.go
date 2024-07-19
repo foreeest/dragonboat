@@ -22,10 +22,10 @@ import (
 
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/foreeest/dragonboat/client"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/logger"
+	"github.com/lni/dragonboat/v4/client"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/logger"
 )
 
 var (
@@ -281,7 +281,7 @@ func (m Chunk) IsPoisonChunk() bool {
 
 // CanDrop returns a boolean value indicating whether the message can be
 // safely dropped.
-func (m *Message) CanDrop() bool {
+func (m *MY_Message) CanDrop() bool {
 	return m.Type != InstallSnapshot &&
 		m.Type != Unreachable && m.Type != SnapshotStatus
 }

@@ -15,7 +15,7 @@
 package tan
 
 import (
-	"github.com/foreeest/dragonboat/internal/tan"
+	"github.com/lni/dragonboat/v4/internal/tan"
 )
 
 // Factory is the factory variable used to create tan instances.

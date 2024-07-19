@@ -34,7 +34,7 @@ membership change requests to add or remove nodes from selected Raft shard.
 
 User applications can leverage the power of the Raft protocol by implementing
 the IStateMachine or IOnDiskStateMachine component, as defined in
-github.com/foreeest/dragonboat/statemachine. Known as user state machines, each
+github.com/lni/dragonboat/v4/statemachine. Known as user state machines, each
 IStateMachine or IOnDiskStateMachine instance is in charge of updating, querying
 and snapshotting application data with minimum exposure to the Raft protocol
 itself.
@@ -53,7 +53,7 @@ its deadline, it faces the risk of having the same proposal committed and
 applied twice into the user state machine. Dragonboat prevents this by
 implementing the client session concept described in Diego Ongaro's PhD thesis.
 */
-package dragonboat // github.com/foreeest/dragonboat
+package dragonboat // github.com/lni/dragonboat/v4
 
 import (
 	"context"
@@ -68,21 +68,21 @@ import (
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat/client"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/id"
-	"github.com/foreeest/dragonboat/internal/invariants"
-	"github.com/foreeest/dragonboat/internal/logdb"
-	"github.com/foreeest/dragonboat/internal/registry"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/transport"
-	"github.com/foreeest/dragonboat/internal/utils"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4/client"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/id"
+	"github.com/lni/dragonboat/v4/internal/invariants"
+	"github.com/lni/dragonboat/v4/internal/logdb"
+	"github.com/lni/dragonboat/v4/internal/registry"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/transport"
+	"github.com/lni/dragonboat/v4/internal/utils"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
 const (
@@ -1873,7 +1873,7 @@ func (nh *NodeHost) handleListenerEvents() {
 	}
 }
 
-func (nh *NodeHost) sendMessage(msg pb.Message) {
+func (nh *NodeHost) sendMessage(msg pb.MY_Message) {
 	if nh.isPartitioned() {
 		return
 	}
@@ -1882,19 +1882,19 @@ func (nh *NodeHost) sendMessage(msg pb.Message) {
 	} else {
 		witness := msg.Snapshot.Witness
 		plog.Debugf("%s is sending snapshot to %s, witness %t, index %d, size %d",
-			dn(msg.ShardID, msg.From), dn(msg.ShardID, msg.To),
+			dn(msg.ShardID, msg.From), dn(msg.ShardID, msg.To[0]),
 			witness, msg.Snapshot.Index, msg.Snapshot.FileSize)
 		if n, ok := nh.getShard(msg.ShardID); ok {
 			if witness || !n.OnDiskStateMachine() {
 				nh.transport.SendSnapshot(msg)
 			} else {
-				n.pushStreamSnapshotRequest(msg.ShardID, msg.To)
+				n.pushStreamSnapshotRequest(msg.ShardID, msg.To[0])
 			}
 		}
 		nh.events.sys.Publish(server.SystemEvent{
 			Type:      server.SendSnapshotStarted,
 			ShardID:   msg.ShardID,
-			ReplicaID: msg.To,
+			ReplicaID: msg.To[0],
 			From:      msg.From,
 		})
 	}
@@ -1902,9 +1902,12 @@ func (nh *NodeHost) sendMessage(msg pb.Message) {
 
 func (nh *NodeHost) sendTickMessage(shards []*node, tick uint64) {
 	for _, n := range shards {
-		m := pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, n.replicaID)
+		m := pb.MY_Message{
 			Type: pb.LocalTick,
-			To:   n.replicaID,
+			//To:   n.replicaID,
+			To:   to_list,
 			From: n.replicaID,
 			Hint: tick,
 		}
@@ -2087,13 +2090,13 @@ func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64
 		}
 	}
 	for _, req := range msg.Requests {
-		if req.To == 0 {
+		if req.To[0] == 0 {
 			plog.Panicf("to field not set, %s", req.Type)
 		}
 		if n, ok := nh.getShard(req.ShardID); ok {
-			if n.replicaID != req.To {
+			if n.replicaID != req.To[0] {
 				plog.Warningf("ignored a %s message sent to %s but received by %s",
-					req.Type, dn(req.ShardID, req.To), dn(req.ShardID, n.replicaID))
+					req.Type, dn(req.ShardID, req.To[0]), dn(req.ShardID, n.replicaID))
 				continue
 			}
 			if req.Type == pb.InstallSnapshot {
@@ -2102,7 +2105,7 @@ func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64
 			} else if req.Type == pb.SnapshotReceived {
 				plog.Debugf("SnapshotReceived received, shard id %d, replica id %d",
 					req.ShardID, req.From)
-				n.mq.AddDelayed(pb.Message{
+				n.mq.AddDelayed(pb.MY_Message{
 					Type: pb.SnapshotStatus,
 					From: req.From,
 				}, streamConfirmedDelayTick)
@@ -2132,7 +2135,7 @@ func (h *messageHandler) HandleSnapshotStatus(shardID uint64,
 		ReplicaID: replicaID,
 	})
 	if n, ok := h.nh.getShard(shardID); ok {
-		n.mq.AddDelayed(pb.Message{
+		n.mq.AddDelayed(pb.MY_Message{
 			Type:   pb.SnapshotStatus,
 			From:   replicaID,
 			Reject: failed,
@@ -2143,10 +2146,13 @@ func (h *messageHandler) HandleSnapshotStatus(shardID uint64,
 
 func (h *messageHandler) HandleUnreachable(shardID uint64, replicaID uint64) {
 	if n, ok := h.nh.getShard(shardID); ok {
-		m := pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, n.replicaID)
+		m := pb.MY_Message{
 			Type: pb.Unreachable,
 			From: replicaID,
-			To:   n.replicaID,
+			//To:   n.replicaID,
+			To: to_list,
 		}
 		n.mq.MustAdd(m)
 		h.nh.engine.setStepReady(shardID)
@@ -2155,8 +2161,11 @@ func (h *messageHandler) HandleUnreachable(shardID uint64, replicaID uint64) {
 
 func (h *messageHandler) HandleSnapshot(shardID uint64,
 	replicaID uint64, from uint64) {
-	m := pb.Message{
-		To:      from,
+	var to_list []uint64
+	to_list = append(to_list, from)
+	m := pb.MY_Message{
+		//To:      from,
+		To:      to_list,
 		From:    replicaID,
 		ShardID: shardID,
 		Type:    pb.SnapshotReceived,

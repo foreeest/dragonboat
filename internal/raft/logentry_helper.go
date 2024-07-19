@@ -17,8 +17,8 @@ package raft
 import (
 	"github.com/cockroachdb/errors"
 
-	"github.com/foreeest/dragonboat/internal/server"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/internal/server"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 // LogTestHelper is a helper type used for testing logEntry.

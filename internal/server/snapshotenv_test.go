@@ -18,8 +18,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/foreeest/dragonboat/internal/vfs"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func reportLeakedFD(fs vfs.IFS, t *testing.T) {
@@ -172,7 +172,7 @@ func TestFlagFileExists(t *testing.T) {
 		if env.finalDirExists() {
 			t.Errorf("final dir already exist")
 		}
-		msg := &pb.Message{}
+		msg := &pb.MY_Message{}
 		if err := env.createFlagFile(msg); err != nil {
 			t.Errorf("failed to create flag file")
 		}
@@ -193,7 +193,7 @@ func TestFlagFileExists(t *testing.T) {
 
 func TestFinalizeSnapshotCanComplete(t *testing.T) {
 	tf := func(t *testing.T, env SSEnv) {
-		m := &pb.Message{}
+		m := &pb.MY_Message{}
 		if err := env.FinalizeSnapshot(m); err != nil {
 			t.Errorf("failed to finalize snapshot %v", err)
 		}
@@ -214,7 +214,7 @@ func TestFinalizeSnapshotReturnOutOfDateWhenFinalDirExist(t *testing.T) {
 		if err := env.fs.MkdirAll(finalDir, 0755); err != nil {
 			t.Fatalf("%v", err)
 		}
-		m := &pb.Message{}
+		m := &pb.MY_Message{}
 		if err := env.FinalizeSnapshot(m); err != ErrSnapshotOutOfDate {
 			t.Errorf("didn't return ErrSnapshotOutOfDate %v", err)
 		}

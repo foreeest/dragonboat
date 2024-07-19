@@ -17,7 +17,7 @@ package fileutil
 import (
 	"testing"
 
-	"github.com/foreeest/dragonboat/internal/vfs"
+	"github.com/lni/dragonboat/v4/internal/vfs"
 )
 
 func TestVFSSync(t *testing.T) {

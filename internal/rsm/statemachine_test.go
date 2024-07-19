@@ -24,16 +24,16 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/leaktest"
 
-	"github.com/foreeest/dragonboat/client"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/raft"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/tests"
-	"github.com/foreeest/dragonboat/internal/tests/kvpb"
-	"github.com/foreeest/dragonboat/internal/utils/dio"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	pb "github.com/foreeest/dragonboat/raftpb"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4/client"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/raft"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/tests"
+	"github.com/lni/dragonboat/v4/internal/tests/kvpb"
+	"github.com/lni/dragonboat/v4/internal/utils/dio"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	pb "github.com/lni/dragonboat/v4/raftpb"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
 const (

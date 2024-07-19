@@ -42,9 +42,9 @@ package raft
 import (
 	"sort"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/server"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/server"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 // PeerAddress is the basic info for a peer in the Raft shard.
@@ -79,7 +79,7 @@ func Launch(config config.Config,
 
 // Tick moves the logical clock forward by one tick.
 func (p *Peer) Tick() error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:   pb.LocalTick,
 		Reject: false,
 	})
@@ -87,7 +87,7 @@ func (p *Peer) Tick() error {
 
 // QuiescedTick moves the logical clock forward by one tick in quiesced mode.
 func (p *Peer) QuiescedTick() error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:   pb.LocalTick,
 		Reject: true,
 	})
@@ -95,10 +95,13 @@ func (p *Peer) QuiescedTick() error {
 
 func (p *Peer) QueryRaftLog(firstIndex uint64,
 	lastIndex uint64, maxSize uint64) error {
-	return p.raft.Handle(pb.Message{
+	var to_list []uint64
+	to_list = append(to_list, lastIndex)
+	return p.raft.Handle(pb.MY_Message{
 		Type: pb.LogQuery,
 		From: firstIndex,
-		To:   lastIndex,
+		//To:   lastIndex,
+		To:   to_list,
 		Hint: maxSize,
 	})
 }
@@ -106,9 +109,12 @@ func (p *Peer) QueryRaftLog(firstIndex uint64,
 // RequestLeaderTransfer makes a request to transfer the leadership to the
 // specified target node.
 func (p *Peer) RequestLeaderTransfer(target uint64) error {
-	return p.raft.Handle(pb.Message{
+	var to_list []uint64
+	to_list = append(to_list, p.raft.replicaID)
+	return p.raft.Handle(pb.MY_Message{
 		Type: pb.LeaderTransfer,
-		To:   p.raft.replicaID,
+		//To:   p.raft.replicaID,
+		To:   to_list,
 		Hint: target,
 	})
 }
@@ -116,7 +122,7 @@ func (p *Peer) RequestLeaderTransfer(target uint64) error {
 // ProposeEntries proposes specified entries in a batched mode using a single
 // MTPropose message.
 func (p *Peer) ProposeEntries(ents []pb.Entry) error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:    pb.Propose,
 		From:    p.raft.replicaID,
 		Entries: ents,
@@ -126,7 +132,7 @@ func (p *Peer) ProposeEntries(ents []pb.Entry) error {
 // ProposeConfigChange proposes a raft membership change.
 func (p *Peer) ProposeConfigChange(cc pb.ConfigChange, key uint64) error {
 	data := pb.MustMarshal(&cc)
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:    pb.Propose,
 		Entries: []pb.Entry{{Type: pb.ConfigChangeEntry, Cmd: data, Key: key}},
 	})
@@ -138,7 +144,7 @@ func (p *Peer) ApplyConfigChange(cc pb.ConfigChange) error {
 		p.raft.clearPendingConfigChange()
 		return nil
 	}
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:     pb.ConfigChangeEvent,
 		Reject:   false,
 		Hint:     cc.ReplicaID,
@@ -148,7 +154,7 @@ func (p *Peer) ApplyConfigChange(cc pb.ConfigChange) error {
 
 // RejectConfigChange rejects the currently pending raft membership change.
 func (p *Peer) RejectConfigChange() error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:   pb.ConfigChangeEvent,
 		Reject: true,
 	})
@@ -156,7 +162,7 @@ func (p *Peer) RejectConfigChange() error {
 
 // RestoreRemotes applies the remotes info obtained from the specified snapshot.
 func (p *Peer) RestoreRemotes(ss pb.Snapshot) error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:     pb.SnapshotReceived,
 		Snapshot: ss,
 	})
@@ -164,7 +170,7 @@ func (p *Peer) RestoreRemotes(ss pb.Snapshot) error {
 
 // ReportUnreachableNode marks the specified node as not reachable.
 func (p *Peer) ReportUnreachableNode(replicaID uint64) error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type: pb.Unreachable,
 		From: replicaID,
 	})
@@ -173,7 +179,7 @@ func (p *Peer) ReportUnreachableNode(replicaID uint64) error {
 // ReportSnapshotStatus reports the status of the snapshot to the local raft
 // node.
 func (p *Peer) ReportSnapshotStatus(replicaID uint64, reject bool) error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:   pb.SnapshotStatus,
 		From:   replicaID,
 		Reject: reject,
@@ -181,7 +187,7 @@ func (p *Peer) ReportSnapshotStatus(replicaID uint64, reject bool) error {
 }
 
 // Handle processes the given message.
-func (p *Peer) Handle(m pb.Message) error {
+func (p *Peer) Handle(m pb.MY_Message) error {
 	if IsLocalMessageType(m.Type) {
 		panic("local message sent to Step")
 	}
@@ -262,9 +268,14 @@ func (p *Peer) HasUpdate(moreToApply bool) bool {
 	if r.leaderUpdate != nil {
 		return true
 	}
-	if len(r.msgs) > 0 {
+	// if len(r.msgs) > 0 {
+	// 	return true
+	// }
+	//JPF: add
+	if len(r.My_msgs) > 0 {
 		return true
 	}
+	//JPF: add
 	if moreToApply && r.log.hasEntriesToApply() {
 		return true
 	}
@@ -290,7 +301,10 @@ func (p *Peer) HasUpdate(moreToApply bool) bool {
 
 // Commit commits the Update state to mark it as processed.
 func (p *Peer) Commit(ud pb.Update) {
-	p.raft.msgs = nil
+	//p.raft.msgs = nil
+	//JPF: add
+	p.raft.My_msgs = nil
+	//JPF: add
 	p.raft.logQueryResult = nil
 	p.raft.leaderUpdate = nil
 	p.raft.droppedEntries = nil
@@ -307,7 +321,7 @@ func (p *Peer) Commit(ud pb.Update) {
 // ReadIndex starts a ReadIndex operation. The ReadIndex protocol is defined in
 // the section 6.4 of the Raft thesis.
 func (p *Peer) ReadIndex(ctx pb.SystemCtx) error {
-	return p.raft.Handle(pb.Message{
+	return p.raft.Handle(pb.MY_Message{
 		Type:     pb.ReadIndex,
 		Hint:     ctx.Low,
 		HintHigh: ctx.High,
@@ -336,9 +350,12 @@ func (p *Peer) getUpdate(moreToApply bool,
 		ShardID:       p.raft.shardID,
 		ReplicaID:     p.raft.replicaID,
 		EntriesToSave: p.entryLog().entriesToSave(),
-		Messages:      p.raft.msgs,
-		LastApplied:   lastApplied,
-		FastApply:     true,
+		//Messages:      p.raft.msgs,
+		//JPF:add
+		My_Messages: p.raft.My_msgs,
+		//JPF: add
+		LastApplied: lastApplied,
+		FastApply:   true,
 	}
 	if p.raft.logQueryResult != nil {
 		ud.LogQueryResult = *p.raft.logQueryResult
@@ -346,9 +363,14 @@ func (p *Peer) getUpdate(moreToApply bool,
 	if p.raft.leaderUpdate != nil {
 		ud.LeaderUpdate = *p.raft.leaderUpdate
 	}
-	for idx := range ud.Messages {
-		ud.Messages[idx].ShardID = p.raft.shardID
+	// for idx := range ud.My_Messages {
+	// 	ud.Messages[idx].ShardID = p.raft.shardID
+	// }
+	//JPF: add
+	for idx := range ud.My_Messages {
+		ud.My_Messages[idx].ShardID = p.raft.shardID
 	}
+	//JPF: add
 	if moreToApply {
 		toApply, err := p.entryLog().entriesToApply()
 		if err != nil {

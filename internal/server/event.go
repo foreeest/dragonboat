@@ -15,7 +15,7 @@
 package server
 
 import (
-	pb "github.com/foreeest/dragonboat/raftpb"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 const (

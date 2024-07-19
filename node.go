@@ -21,28 +21,28 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/foreeest/dragonboat/client"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/fileutil"
-	"github.com/foreeest/dragonboat/internal/logdb"
-	"github.com/foreeest/dragonboat/internal/raft"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/transport"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4/client"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/fileutil"
+	"github.com/lni/dragonboat/v4/internal/logdb"
+	"github.com/lni/dragonboat/v4/internal/raft"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/transport"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
-var (
+var ( //变量声明
 	incomingProposalsMaxLen = settings.Soft.IncomingProposalQueueLength
 	incomingReadIndexMaxLen = settings.Soft.IncomingReadIndexQueueLength
 	syncTaskInterval        = settings.Soft.SyncTaskInterval
 	lazyFreeCycle           = settings.Soft.LazyFreeCycle
 )
 
-type pipeline interface {
+type pipeline interface { //定义了一个pipline接口,interface（接口）是一种类型，它定义了一组方法的集合。一个类型如果拥有接口中定义的所有方法，则称该类型实现了该接口。
 	setCloseReady(*node)
 	setStepReady(shardID uint64)
 	setCommitReady(shardID uint64)
@@ -52,20 +52,21 @@ type pipeline interface {
 	setRecoverReady(shardID uint64)
 }
 
+// INodeRegistry
 type logDBMetrics struct {
 	busy int32
 }
 
-func (l *logDBMetrics) update(busy bool) {
-	v := int32(0)
+func (l *logDBMetrics) update(busy bool) { //这个函数保证更新后l.busy只有0和1两中可能的取值，非0则置为1
+	v := int32(0) //:= 是一个简短变量声明和初始化的操作符
 	if busy {
 		v = int32(1)
 	}
-	atomic.StoreInt32(&l.busy, v)
+	atomic.StoreInt32(&l.busy, v) //atomic.StoreInt32 是一个函数，它用于原子地将一个 int32 类型的值存储到指定的内存地址.
 }
 
 func (l *logDBMetrics) isBusy() bool {
-	return atomic.LoadInt32(&l.busy) != 0
+	return atomic.LoadInt32(&l.busy) != 0 //返回busy的值
 }
 
 type leaderInfo struct {
@@ -74,35 +75,62 @@ type leaderInfo struct {
 }
 
 type node struct {
-	shardInfo             atomic.Value
-	leaderInfo            atomic.Value
-	nodeRegistry          raftio.INodeRegistry
-	logdb                 raftio.ILogDB
-	pipeline              pipeline
-	getStreamSink         func(uint64, uint64) *transport.Sink
-	ss                    snapshotState
-	configChangeC         <-chan configChangeRequest
-	snapshotC             <-chan rsm.SSRequest
-	toApplyQ              *rsm.TaskQueue
-	toCommitQ             *rsm.TaskQueue
-	syncTask              task
-	metrics               *logDBMetrics
-	stopC                 chan struct{}
-	sysEvents             *sysEventListener
-	raftEvents            *raftEventListener
-	handleSnapshotStatus  func(uint64, uint64, bool)
-	sendRaftMessage       func(pb.Message)
+	shardInfo    atomic.Value
+	leaderInfo   atomic.Value
+	nodeRegistry raftio.INodeRegistry //在分布式系统或基于Raft协议的系统中，raftio.INodeRegistry 是一个接口或类型(registry.go)，它用于管理或注册与Raft协议相关的节点（nodes）。
+
+	// ，raftio.INodeRegistry 具有以下功能：
+	// type INodeRegistry interface {
+	// 	Close() error
+	// 	Add(shardID uint64, replicaID uint64, url string)
+	// 	Remove(shardID uint64, replicaID uint64)
+	// 	RemoveShard(shardID uint64)
+	// 	Resolve(shardID uint64, replicaID uint64) (string, string, error)
+	// }
+
+	// 节点注册：允许节点在Raft集群中注册自己，以便它们可以参与共识过程。
+	// 节点发现：提供机制来发现集群中的其他节点。
+
+	logdb raftio.ILogDB //在分布式系统或基于Raft协议的系统中，raftio.ILogDB 通常代表一个与Raft协议相关的日志数据库接口。这里的 ILogDB 可能是一个定义了操作Raft日志所需方法的接口。
+
+	// 具体来说，raftio.ILogDB 可能包含以下一些方法（尽管这不是一个固定的接口定义，而是基于一般需求和常见模式的推测）：
+
+	// 写入日志：将Raft日志条目写入到持久化存储中。
+	// 读取日志：从持久化存储中读取Raft日志条目。
+	// 截断日志：删除Raft日志中的旧条目，以释放存储空间或管理日志大小。
+	// 获取最后一条日志的索引：查询最后一条已写入日志的索引。
+	// 获取特定索引的日志：根据指定的索引获取日志条目。
+	// 获取日志条目的快照：生成和提供Raft日志条目的快照，以便快速恢复或同步状态。
+	pipeline      pipeline
+	getStreamSink func(uint64, uint64) *transport.Sink
+	ss            snapshotState
+	configChangeC <-chan configChangeRequest //<-chan configChangeRequest：这表示一个只接收的通道。你不能往这个通道里发送数据，但你可以从这个通道里接收数据。箭头 <- 表示这个通道是一个接收通道。接收元素类型为 configChangeRequest,应该是在客户端？
+	snapshotC     <-chan rsm.SSRequest
+	toApplyQ      *rsm.TaskQueue
+	toCommitQ     *rsm.TaskQueue //表示一个指向 rsm.TaskQueue 类型的指针变量
+	syncTask      task
+	metrics       *logDBMetrics
+	stopC         chan struct{} //在Go语言中，chan struct{} 是一个特殊类型的通道，其中传输的元素是空的struct{}类型。因为struct{}不包含任何字段，它的大小是零，所以使用chan struct{}作为通道可以非常高效地传递信号，而不需要传输任何实际的数据。
+
+	// 当你看到stopC chan struct{}这样的声明时，它通常被用作一个信号通道，用于通知接收者某个操作或流程应该停止。接收到空struct{}就停止
+	sysEvents            *sysEventListener ////raftio.ISystemEventListener is what? ????server.SystemEvent is what??   //在event.go中159行
+	raftEvents           *raftEventListener
+	handleSnapshotStatus func(uint64, uint64, bool) //一个用来处理与快照（snapshot）相关的状态或事件的函数
+	sendRaftMessage      func(pb.MY_Message)
+	//JPF:add
+	//My_sendRaftMessage func(pb.MY_Message)
+	//JPF:add
 	validateTarget        func(string) bool
 	sm                    *rsm.StateMachine
 	incomingReadIndexes   *readIndexQueue
 	incomingProposals     *entryQueue
 	snapshotLock          sync.Mutex
-	pendingProposals      pendingProposal
+	pendingProposals      pendingProposal //等待Proposal
 	pendingReadIndexes    pendingReadIndex
 	pendingConfigChange   pendingConfigChange
 	pendingSnapshot       pendingSnapshot
 	pendingLeaderTransfer pendingLeaderTransfer
-	pendingRaftLogQuery   pendingRaftLogQuery
+	pendingRaftLogQuery   pendingRaftLogQuery //等待日志查询
 	initializedC          chan struct{}
 	p                     raft.Peer
 	logReader             *logdb.LogReader
@@ -131,6 +159,13 @@ type node struct {
 
 var _ rsm.INode = (*node)(nil)
 
+// 在Go语言中，var _ rsm.INode = (*node)(nil) 这样的代码是一种空赋值（blank identifier assignment），也被称为类型断言（type assertion）或类型断言的空赋值（type assertion to the blank identifier）。但这里并不是在进行常规的类型断言，而是利用Go的编译时类型检查来确保*node类型实现了rsm.INode接口。
+
+// 具体来说，_是一个空标识符，它表示我们不关心这个变量的值。在这个上下文中，(*node)(nil)是一个指向node类型零值的指针，它被转换为rsm.INode类型。由于我们使用了空标识符_来接收这个值，所以这个值实际上并没有被使用。
+
+// 但是，如果*node类型没有实现rsm.INode接口中定义的所有方法，那么这行代码在编译时会报错。这是因为Go语言会在编译时检查接口的实现，确保类型确实实现了接口中定义的所有方法。
+
+// 因此，var _ rsm.INode = (*node)(nil)这行代码的主要作用是作为一个编译时的检查，确保*node类型正确地实现了rsm.INode接口。这是一种在Go语言中常见的模式，用于确保类型实现了某个接口，而不需要显式地创建和使用该类型的实例。
 var instanceID uint64
 
 func newNode(peers map[uint64]string,
@@ -144,30 +179,32 @@ func newNode(peers map[uint64]string,
 	liQueue *leaderInfoQueue,
 	getStreamSink func(uint64, uint64) *transport.Sink,
 	handleSnapshotStatus func(uint64, uint64, bool),
-	sendMessage func(pb.Message),
+	sendMessage func(pb.MY_Message),
 	nodeRegistry raftio.INodeRegistry,
 	pool *sync.Pool,
 	ldb raftio.ILogDB,
 	metrics *logDBMetrics,
-	sysEvents *sysEventListener) (*node, error) {
+	sysEvents *sysEventListener) (*node, error) { //创建Node的函数，返回了指向node的指针和一个错误码
 	notifyCommit := nhConfig.NotifyCommit
 	proposals := newEntryQueue(incomingProposalsMaxLen, lazyFreeCycle)
 	readIndexes := newReadIndexQueue(incomingReadIndexMaxLen)
 	configChangeC := make(chan configChangeRequest, 1)
+	//make(chan configChangeRequest, 1) 使用了 make 函数来创建这个通道，并指定了它的缓冲区大小为 1。这意味着在没有协程接收通道中的值之前，你可以发送一个 configChangeRequest 类型的值到 configChangeC 通道中，
+	//而不会阻塞发送方。但是，如果你试图在没有接收方的情况下发送第二个值，那么发送操作将会阻塞，直到有接收方从通道中接收一个值，从而释放缓冲区的一个位置
 	snapshotC := make(chan rsm.SSRequest, 1)
 	stopC := make(chan struct{})
 	mq := server.NewMessageQueue(receiveQueueLen,
 		false, lazyFreeCycle, nhConfig.MaxReceiveQueueSize)
-	rn := &node{
-		shardID:               config.ShardID,
-		replicaID:             config.ReplicaID,
+	rn := &node{ //初始化node对象，对象中的变量名+冒号+赋值
+		shardID:               config.ShardID,   //配置
+		replicaID:             config.ReplicaID, //每个raft组都有一个shareID,单个raft组里面的每台机器都有一个replicaID??
 		raftAddress:           nhConfig.RaftAddress,
 		instanceID:            atomic.AddUint64(&instanceID, 1),
-		tickMillisecond:       nhConfig.RTTMillisecond,
+		tickMillisecond:       nhConfig.RTTMillisecond, //可能是心跳间隔
 		config:                config,
 		incomingProposals:     proposals,
 		incomingReadIndexes:   readIndexes,
-		configChangeC:         configChangeC,
+		configChangeC:         configChangeC, //用于通知配置更改的通道?
 		snapshotC:             snapshotC,
 		pipeline:              pipeline,
 		getStreamSink:         getStreamSink,
@@ -180,24 +217,25 @@ func newNode(peers map[uint64]string,
 		pendingLeaderTransfer: newPendingLeaderTransfer(),
 		pendingRaftLogQuery:   newPendingRaftLogQuery(),
 		nodeRegistry:          nodeRegistry,
-		snapshotter:           snapshotter,
+		snapshotter:           snapshotter, //节点注册或发现的机制。
 		logReader:             logReader,
 		sendRaftMessage:       sendMessage,
-		mq:                    mq,
-		logdb:                 ldb,
-		syncTask:              newTask(syncTaskInterval),
-		sysEvents:             sysEvents,
-		notifyCommit:          notifyCommit,
-		metrics:               metrics,
-		initializedC:          make(chan struct{}),
-		ss:                    snapshotState{},
-		validateTarget:        nhConfig.GetTargetValidator(),
+		//My_sendRaftMessage:    My_sendMessage,
+		mq:             mq,
+		logdb:          ldb,                       // 用于存储Raft日志的数据库或存储系统
+		syncTask:       newTask(syncTaskInterval), //同步任务的调度器或执行器
+		sysEvents:      sysEvents,
+		notifyCommit:   notifyCommit,
+		metrics:        metrics,
+		initializedC:   make(chan struct{}),
+		ss:             snapshotState{},
+		validateTarget: nhConfig.GetTargetValidator(),
 		qs: &quiesceState{
 			electionTick: config.ElectionRTT * 2,
 			enabled:      config.Quiesce,
 			shardID:      config.ShardID,
 			replicaID:    config.ReplicaID,
-		},
+		}, //节点静默（quiesce）状态的结构体或对象，包含与静默相关的配置和状态。
 	}
 	ds := createSM(config.ShardID, config.ReplicaID, stopC)
 	sm := rsm.NewStateMachine(ds, snapshotter, config, rn, snapshotter.fs)
@@ -240,10 +278,11 @@ func (n *node) commitReady() {
 	n.pipeline.setCommitReady(n.shardID)
 }
 
+// ApplyUpdate 方法负责处理从 Raft 日志中获取的更新，并根据节点的角色和传入参数的状态来执行相应的操作。
 func (n *node) ApplyUpdate(e pb.Entry,
 	result sm.Result, rejected bool, ignored bool, notifyRead bool) {
 	if n.isWitness() {
-		return
+		return //如果节点是观察者（或称为“只读副本”），则该方法直接返回，不执行任何操作。观察者节点在 Raft 中通常不参与投票和日志复制，它们只是用来提供读服务以减轻领导者的负载。
 	}
 	if notifyRead {
 		n.pendingReadIndexes.applied(e.Index)
@@ -259,6 +298,8 @@ func (n *node) ApplyUpdate(e pb.Entry,
 func (n *node) ApplyConfigChange(cc pb.ConfigChange,
 	key uint64, rejected bool) error {
 	n.raftMu.Lock()
+	// 	n.raftMu.Lock()：在访问或修改与 Raft 相关的共享资源之前，使用互斥锁 n.raftMu 来确保线程安全。
+	// defer n.raftMu.Unlock()：使用 defer 关键字确保在函数返回之前，无论是否发生错误或异常，都会释放互斥锁。
 	defer n.raftMu.Unlock()
 	if !rejected {
 		if err := n.applyConfigChange(cc); err != nil {
@@ -268,18 +309,18 @@ func (n *node) ApplyConfigChange(cc pb.ConfigChange,
 	return n.configChangeProcessed(key, rejected)
 }
 
-func (n *node) applyConfigChange(cc pb.ConfigChange) error {
+func (n *node) applyConfigChange(cc pb.ConfigChange) error { //节点数量变更
 	if err := n.p.ApplyConfigChange(cc); err != nil {
 		return err
 	}
 	switch cc.Type {
-	case pb.AddNode, pb.AddNonVoting, pb.AddWitness:
+	case pb.AddNode, pb.AddNonVoting, pb.AddWitness: //		有投票权节点，无投票权节点，观测节点
 		n.nodeRegistry.Add(n.shardID, cc.ReplicaID, cc.Address)
 	case pb.RemoveNode:
 		if cc.ReplicaID == n.replicaID {
 			plog.Infof("%s applied ConfChange Remove for itself", n.id())
 			n.nodeRegistry.RemoveShard(n.shardID)
-			n.requestRemoval()
+			n.requestRemoval() //请求将自己下线
 			n.notifySelfRemove()
 		} else {
 			n.nodeRegistry.Remove(n.shardID, cc.ReplicaID)
@@ -986,17 +1027,26 @@ func (n *node) requestCompaction() (*SysOpState, error) {
 	return nil, ErrRejected
 }
 
-func isFreeOrderMessage(m pb.Message) bool {
+func isFreeOrderMessage(m pb.MY_Message) bool {
 	return m.Type == pb.Replicate || m.Type == pb.Ping
 }
 
+// JPF add:
+// func My_isFreeOrderMessage(m pb.MY_Message) bool {
+// 	return m.Type == pb.Replicate || m.Type == pb.Ping
+// }
+
+// JPF:add
 func (n *node) sendEnterQuiesceMessages() {
 	for replicaID := range n.sm.GetMembership().Addresses {
 		if replicaID != n.replicaID {
-			msg := pb.Message{
-				Type:    pb.Quiesce,
-				From:    n.replicaID,
-				To:      replicaID,
+			var to_list []uint64
+			to_list = append(to_list, replicaID)
+			msg := pb.MY_Message{
+				Type: pb.Quiesce,
+				From: n.replicaID,
+				//To:      replicaID,
+				To:      to_list,
 				ShardID: n.shardID,
 			}
 			n.sendRaftMessage(msg)
@@ -1004,7 +1054,7 @@ func (n *node) sendEnterQuiesceMessages() {
 	}
 }
 
-func (n *node) sendMessages(msgs []pb.Message) {
+func (n *node) sendMessages(msgs []pb.MY_Message) {
 	for _, msg := range msgs {
 		if !isFreeOrderMessage(msg) {
 			msg.ShardID = n.shardID
@@ -1014,10 +1064,16 @@ func (n *node) sendMessages(msgs []pb.Message) {
 }
 
 func (n *node) sendReplicateMessages(ud pb.Update) {
-	for _, msg := range ud.Messages {
+	for _, msg := range ud.My_Messages {
 		if isFreeOrderMessage(msg) {
 			msg.ShardID = n.shardID
 			n.sendRaftMessage(msg)
+		}
+	}
+	for _, My_msg := range ud.My_Messages {
+		if isFreeOrderMessage(My_msg) {
+			My_msg.ShardID = n.shardID
+			n.sendRaftMessage(My_msg)
 		}
 	}
 }
@@ -1105,7 +1161,7 @@ func (n *node) processRaftUpdate(ud pb.Update) error {
 	if err := n.logReader.Append(ud.EntriesToSave); err != nil {
 		return err
 	}
-	n.sendMessages(ud.Messages)
+	n.sendMessages(ud.My_Messages)
 	if err := n.removeLog(); err != nil {
 		return err
 	}
@@ -1336,7 +1392,7 @@ func (n *node) isBusySnapshotting() bool {
 	return snapshotting && n.sm.TaskChanBusy()
 }
 
-func (n *node) recordMessage(m pb.Message) {
+func (n *node) recordMessage(m pb.MY_Message) {
 	if (m.Type == pb.Heartbeat || m.Type == pb.HeartbeatResp) && m.Hint > 0 {
 		n.qs.record(pb.ReadIndex)
 	} else {
@@ -1376,7 +1432,7 @@ func (n *node) handleReceivedMessages() (bool, error) {
 	return len(msgs) > 0, nil
 }
 
-func (n *node) handleMessage(m pb.Message) (bool, error) {
+func (n *node) handleMessage(m pb.MY_Message) (bool, error) {
 	switch m.Type {
 	case pb.LocalTick:
 		if err := n.tick(m.Hint); err != nil {
@@ -1609,6 +1665,18 @@ func (n *node) notifyConfigChange() {
 	})
 }
 
+// 在这段代码中，n.sysEvents.Publish 方法被调用以发布一个系统事件。具体来说，这是关于集群成员关系变更（MembershipChanged）的事件。以下是关于这段代码更详细的解释：
+
+// 系统事件对象：
+// 这里创建了一个 server.SystemEvent 类型的对象，并设置了其三个字段：
+
+// Type: 设置为 server.MembershipChanged，这通常是一个预定义的常量，表示这是一个集群成员关系变更的事件。
+// ShardID: 设置为 n.shardID，这是当前节点所属的分片ID。在分布式系统中，数据可能被分割成多个分片（shards），每个分片由一个或多个节点管理。
+// ReplicaID: 设置为 n.replicaID，这是当前节点的副本ID。在分布式系统中，为了确保高可用性和容错性，通常会复制数据并在多个节点上存储副本。
+// 发布系统事件：
+// n.sysEvents.Publish 方法被调用以发布这个系统事件。我们可以假设 n.sysEvents 是 node 结构体中的一个成员，它可能是某种事件总线或发布/订阅系统的实例。当调用 Publish 方法时，它会将这个 server.SystemEvent 对象发送给所有订阅了这种类型事件的监听器。
+
+// 整个 notifyConfigChange 方法的目的是在配置变更（可能是添加、删除或修改节点）后，通知集群中的其他组件或系统事件监听器关于该变更的信息。这对于保持集群状态的一致性和允许其他组件根据集群的最新配置进行自适应是非常重要的。
 func (n *node) getShardInfo() ShardInfo {
 	v := n.shardInfo.Load()
 	if v == nil {

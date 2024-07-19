@@ -17,7 +17,7 @@ package raft
 import (
 	"testing"
 
-	pb "github.com/foreeest/dragonboat/raftpb"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func TestLimitSizeOnEmptyEntryList(t *testing.T) {

@@ -38,11 +38,11 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 var (
@@ -51,10 +51,10 @@ var (
 )
 
 // SendSnapshot asynchronously sends raft snapshot message to its target.
-func (t *Transport) SendSnapshot(m pb.Message) bool {
+func (t *Transport) SendSnapshot(m pb.MY_Message) bool {
 	if !t.sendSnapshot(m) {
-		plog.Errorf("failed to send snapshot to %s", dn(m.ShardID, m.To))
-		t.sendSnapshotNotification(m.ShardID, m.To, true)
+		plog.Errorf("failed to send snapshot to %s", dn(m.ShardID, m.To[0]))
+		t.sendSnapshotNotification(m.ShardID, m.To[0], true)
 		return false
 	}
 	return true
@@ -93,7 +93,7 @@ func (t *Transport) getStreamSink(shardID uint64, replicaID uint64) *Sink {
 	return nil
 }
 
-func (t *Transport) sendSnapshot(m pb.Message) bool {
+func (t *Transport) sendSnapshot(m pb.MY_Message) bool {
 	if !t.doSendSnapshot(m) {
 		if err := m.Snapshot.Unref(); err != nil {
 			panic(err)
@@ -103,7 +103,7 @@ func (t *Transport) sendSnapshot(m pb.Message) bool {
 	return true
 }
 
-func (t *Transport) doSendSnapshot(m pb.Message) bool {
+func (t *Transport) doSendSnapshot(m pb.MY_Message) bool {
 	toReplicaID := m.To
 	shardID := m.ShardID
 	if m.Type != pb.InstallSnapshot {
@@ -114,7 +114,7 @@ func (t *Transport) doSendSnapshot(m pb.Message) bool {
 		plog.Errorf("failed to get snapshot chunks %+v", err)
 		return false
 	}
-	addr, _, err := t.resolver.Resolve(shardID, toReplicaID)
+	addr, _, err := t.resolver.Resolve(shardID, toReplicaID[0])
 	if err != nil {
 		return false
 	}
@@ -122,7 +122,7 @@ func (t *Transport) doSendSnapshot(m pb.Message) bool {
 		t.metrics.snapshotCnnectionFailure()
 		return false
 	}
-	key := raftio.GetNodeInfo(shardID, toReplicaID)
+	key := raftio.GetNodeInfo(shardID, toReplicaID[0])
 	job := t.createJob(key, addr, false, len(chunks))
 	if job == nil {
 		return false
@@ -201,7 +201,7 @@ func (t *Transport) sendSnapshotNotification(shardID uint64,
 		dn(shardID, replicaID), rejected)
 }
 
-func splitBySnapshotFile(msg pb.Message,
+func splitBySnapshotFile(msg pb.MY_Message,
 	filepath string, filesize uint64, startChunkID uint64,
 	sf *pb.SnapshotFile) []pb.Chunk {
 	if filesize == 0 {
@@ -219,7 +219,7 @@ func splitBySnapshotFile(msg pb.Message,
 		c := pb.Chunk{
 			BinVer:         raftio.TransportBinVersion,
 			ShardID:        msg.ShardID,
-			ReplicaID:      msg.To,
+			ReplicaID:      msg.To[0],
 			From:           msg.From,
 			FileChunkId:    i,
 			FileChunkCount: chunkCount,
@@ -242,7 +242,7 @@ func splitBySnapshotFile(msg pb.Message,
 	return results
 }
 
-func getChunks(m pb.Message) []pb.Chunk {
+func getChunks(m pb.MY_Message) []pb.Chunk {
 	startChunkID := uint64(0)
 	results := splitBySnapshotFile(m,
 		m.Snapshot.Filepath, m.Snapshot.FileSize, startChunkID, nil)
@@ -259,7 +259,7 @@ func getChunks(m pb.Message) []pb.Chunk {
 	return results
 }
 
-func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func getWitnessChunk(m pb.MY_Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	ss, err := rsm.GetWitnessSnapshot(fs)
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	results = append(results, pb.Chunk{
 		BinVer:         raftio.TransportBinVersion,
 		ShardID:        m.ShardID,
-		ReplicaID:      m.To,
+		ReplicaID:      m.To[0],
 		From:           m.From,
 		FileChunkId:    0,
 		FileChunkCount: 1,
@@ -287,7 +287,7 @@ func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	return results, nil
 }
 
-func splitSnapshotMessage(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func splitSnapshotMessage(m pb.MY_Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	if m.Type != pb.InstallSnapshot {
 		panic("not a snapshot message")
 	}

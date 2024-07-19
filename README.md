@@ -5,10 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/lni/dragonboat)](https://goreportcard.com/report/github.com/lni/dragonboat)
 [![codecov](https://codecov.io/gh/lni/dragonboat/branch/master/graph/badge.svg)](https://codecov.io/gh/lni/dragonboat)
 [![Godoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://godoc.org/github.com/lni/dragonboat/v3)
-[![Join the chat at https://gitter.im/lni/dragonboat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/lni/dragonboat?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)  
-
-## Note ## 
-this is foreeest fork, the goal of this repository is to build an **udp + ebpf version** dragonboat
+[![Join the chat at https://gitter.im/lni/dragonboat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/lni/dragonboat?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## News ##
 * 2022-06-03 We are working towards a v4.0 release which will come with API changes. See [CHANGELOG](CHANGELOG.md) for details. 
@@ -85,7 +82,7 @@ go get github.com/lni/dragonboat/v3@latest
 Or you can use the following command to start using the development version of the Dragonboat, which is current at v4 for its APIs. 
 
 ```
-go get github.com/foreeest/dragonboat@master
+go get github.com/lni/dragonboat/v4@master
 ```
 
 

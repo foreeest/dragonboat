@@ -3,14 +3,135 @@
 
 package raftpb
 
-type Message struct {
-	Type     MessageType
-	To       uint64
+// type Message struct {
+// 	Type     MessageType
+// 	To       uint64
+// 	From     uint64
+// 	ShardID  uint64
+// 	Term     uint64
+// 	LogTerm  uint64
+// 	LogIndex uint64
+// 	Commit   uint64
+// 	Reject   bool
+// 	Hint     uint64
+// 	Entries  []Entry
+// 	Snapshot Snapshot
+// 	HintHigh uint64
+// }
+
+// func (m *Message) Marshal() (dAtA []byte, err error) {
+// 	size := m.Size()
+// 	dAtA = make([]byte, size)
+// 	n, err := m.MarshalTo(dAtA)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return dAtA[:n], nil
+// }
+
+// func (m *Message) MarshalTo(dAtA []byte) (int, error) {
+// 	var i int
+// 	_ = i
+// 	var l int
+// 	_ = l
+// 	dAtA[i] = 0x8
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
+// 	dAtA[i] = 0x10
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.To))
+// 	dAtA[i] = 0x18
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.From))
+// 	dAtA[i] = 0x20
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
+// 	dAtA[i] = 0x28
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
+// 	dAtA[i] = 0x30
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
+// 	dAtA[i] = 0x38
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
+// 	dAtA[i] = 0x40
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
+// 	dAtA[i] = 0x48
+// 	i++
+// 	if m.Reject {
+// 		dAtA[i] = 1
+// 	} else {
+// 		dAtA[i] = 0
+// 	}
+// 	i++
+// 	dAtA[i] = 0x50
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
+// 	if len(m.Entries) > 0 {
+// 		for _, msg := range m.Entries {
+// 			dAtA[i] = 0x5a
+// 			i++
+// 			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
+// 			n, err := msg.MarshalTo(dAtA[i:])
+// 			if err != nil {
+// 				return 0, err
+// 			}
+// 			i += n
+// 		}
+// 	}
+// 	dAtA[i] = 0x62
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
+// 	n2, err := m.Snapshot.MarshalTo(dAtA[i:])
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	i += n2
+// 	dAtA[i] = 0x68
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
+// 	return i, nil
+// }
+
+// func (m *Message) Size() (n int) {
+// 	if m == nil {
+// 		return 0
+// 	}
+// 	var l int
+// 	_ = l
+// 	n += 1 + sovRaft(uint64(m.Type))
+// 	n += 1 + sovRaft(uint64(m.To))
+// 	n += 1 + sovRaft(uint64(m.From))
+// 	n += 1 + sovRaft(uint64(m.ShardID))
+// 	n += 1 + sovRaft(uint64(m.Term))
+// 	n += 1 + sovRaft(uint64(m.LogTerm))
+// 	n += 1 + sovRaft(uint64(m.LogIndex))
+// 	n += 1 + sovRaft(uint64(m.Commit))
+// 	n += 2
+// 	n += 1 + sovRaft(uint64(m.Hint))
+// 	if len(m.Entries) > 0 {
+// 		for _, e := range m.Entries {
+// 			l = e.Size()
+// 			n += 1 + l + sovRaft(uint64(l))
+// 		}
+// 	}
+// 	l = m.Snapshot.Size()
+// 	n += 1 + l + sovRaft(uint64(l))
+// 	n += 1 + sovRaft(uint64(m.HintHigh))
+// 	return n
+// }
+
+//my_message
+type MY_Message struct {
+	Type     MessageType//
+	To       []uint64//这里存储目标Replica, 是个切片，对切片的操作可参考菜鸟驿站
 	From     uint64
 	ShardID  uint64
-	Term     uint64
+	Term     uint64//
 	LogTerm  uint64
-	LogIndex uint64
+	LogIndex uint64//
 	Commit   uint64
 	Reject   bool
 	Hint     uint64
@@ -18,8 +139,8 @@ type Message struct {
 	Snapshot Snapshot
 	HintHigh uint64
 }
-
-func (m *Message) Marshal() (dAtA []byte, err error) {
+// 这个函数不用更改，修改其中调用的函数即可
+func (m *MY_Message) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -29,35 +150,66 @@ func (m *Message) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Message) MarshalTo(dAtA []byte) (int, error) {
+func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
+
+	// Type field，如果要查看的话，看这里的标识符即可！
 	dAtA[i] = 0x8
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
-	dAtA[i] = 0x10
-	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.To))
+
+	// To field (as Length-delimited)
+	//dAtA[i] = 0x10
+	//i++
+	// 这是原来的i = encodeVarintRaft(dAtA, i, uint64(m.To))
+	if len(m.To) > 0 {
+        dAtA[i] = 0x12 // Field number (2) << 3 | Wire type (2) 0x12 是字段标识符，表示字段编号为 2，类型为 Length-delimited
+        i++
+        // Calculate the length of the To field
+        toLength := 0
+        for _, to := range m.To {
+            toLength += sovRaft(uint64(to)) //sovRaft 函数用于计算一个 uint64 类型的整数在 Varint 编码下所需的字节数，详细可以参考raftpb/common下的注释
+        }//遍历 m.To 切片中的每个元素，计算每个 uint64 元素在 Varint 编码下所需的字节数，并累加到 toLength 中。
+        i = encodeVarintRaft(dAtA, i, uint64(toLength))//将 toLength 编码为 Varint 并写入字节数组 dAtA
+        for _, to := range m.To {
+            i = encodeVarintRaft(dAtA, i, uint64(to))
+        }//遍历 m.To 切片中的每个元素，将每个 uint64 元素编码为 Varint 并写入字节数组 dAtA。
+    }
+
+    // From field
 	dAtA[i] = 0x18
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.From))
+
+	// ShardID field
 	dAtA[i] = 0x20
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
+
+	// Term field，要找term看这里的标识符
 	dAtA[i] = 0x28
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
+
+	// LogTerm field
 	dAtA[i] = 0x30
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
+
+	// LogIndex field，要找LogIndex看这里的标识符
 	dAtA[i] = 0x38
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
+
+	// Commit field
 	dAtA[i] = 0x40
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
+
+	// Reject field，ps如果有其他bool类型也可以参考这里修改
 	dAtA[i] = 0x48
 	i++
 	if m.Reject {
@@ -66,9 +218,13 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0
 	}
 	i++
+
+	// Hint field
 	dAtA[i] = 0x50
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
+
+	// Entries field
 	if len(m.Entries) > 0 {
 		for _, msg := range m.Entries {
 			dAtA[i] = 0x5a
@@ -81,6 +237,8 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 			i += n
 		}
 	}
+
+	// Snapshot field
 	dAtA[i] = 0x62
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
@@ -89,36 +247,71 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 		return 0, err
 	}
 	i += n2
+
+	// HintHigh field
 	dAtA[i] = 0x68
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
 	return i, nil
 }
 
-func (m *Message) Size() (n int) {
+func (m *MY_Message) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	n += 1 + sovRaft(uint64(m.Type))
-	n += 1 + sovRaft(uint64(m.To))
+
+	// Type field
+	n += 1 + sovRaft(uint64(m.Type)) //1 是字段标识符的大小，sovRaft 计算 Type 值的 Varint 编码大小
+    //原来的代码 n += 1 + sovRaft(uint64(m.To))
+	// To field (as Length-delimited)
+	if len(m.To) > 0 {
+		toLength := 0
+		for _, to := range m.To {
+			toLength += sovRaft(uint64(to))
+		} //计算 To 字段的总长度 toLength，即所有 uint64 元素（也就是切实的to的元素的大小）的 Varint 编码总大小
+		n += 1 + sovRaft(uint64(toLength)) + toLength//sovRaft(uint64(toLength)) 计算 toLength 值的 Varint 编码大小
+	}//加上 1（字段标识符的大小）和 toLength，即实际数据的大小。
+
+	// From field
 	n += 1 + sovRaft(uint64(m.From))
+
+	// ShardID field
 	n += 1 + sovRaft(uint64(m.ShardID))
+
+	// Term field
 	n += 1 + sovRaft(uint64(m.Term))
+
+	// LogTerm field
 	n += 1 + sovRaft(uint64(m.LogTerm))
+
+	// LogIndex field
 	n += 1 + sovRaft(uint64(m.LogIndex))
+
+	// Commit field
 	n += 1 + sovRaft(uint64(m.Commit))
+
+	// Reject field
 	n += 2
+
+	// Hint field
 	n += 1 + sovRaft(uint64(m.Hint))
+
+	// Entries field
 	if len(m.Entries) > 0 {
 		for _, e := range m.Entries {
 			l = e.Size()
 			n += 1 + l + sovRaft(uint64(l))
 		}
 	}
+
+	// Snapshot field
 	l = m.Snapshot.Size()
 	n += 1 + l + sovRaft(uint64(l))
+
+	// HintHigh field
 	n += 1 + sovRaft(uint64(m.HintHigh))
+
 	return n
 }

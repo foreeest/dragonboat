@@ -23,14 +23,14 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/foreeest/dragonboat/internal/fileutil"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/utils"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/internal/fileutil"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/utils"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 var (
@@ -380,10 +380,13 @@ func (c *Chunk) toMessage(chunk pb.Chunk,
 	}
 	env := c.getEnv(chunk)
 	snapDir := env.GetFinalDir()
-	m := pb.Message{}
+	m := pb.MY_Message{}
 	m.Type = pb.InstallSnapshot
 	m.From = chunk.From
-	m.To = chunk.ReplicaID
+	var to_list []uint64
+	to_list = append(to_list, chunk.ReplicaID)
+	m.To = to_list
+	//m.To = chunk.ReplicaID
 	m.ShardID = chunk.ShardID
 	s := pb.Snapshot{}
 	s.Index = chunk.Index
@@ -403,7 +406,7 @@ func (c *Chunk) toMessage(chunk pb.Chunk,
 	return pb.MessageBatch{
 		BinVer:       chunk.BinVer,
 		DeploymentId: chunk.DeploymentId,
-		Requests:     []pb.Message{m},
+		Requests:     []pb.MY_Message{m},
 	}
 }
 

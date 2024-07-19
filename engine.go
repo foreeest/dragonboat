@@ -21,13 +21,13 @@ import (
 
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
 var (
@@ -1366,8 +1366,12 @@ func resetNodeUpdate(nodeUpdates []pb.Update) {
 	for i := range nodeUpdates {
 		nodeUpdates[i].EntriesToSave = nil
 		nodeUpdates[i].CommittedEntries = nil
-		for j := range nodeUpdates[i].Messages {
-			nodeUpdates[i].Messages[j].Entries = nil
+		for j := range nodeUpdates[i].My_Messages {
+			nodeUpdates[i].My_Messages[j].Entries = nil
+		}
+		//JPF: add
+		for j := range nodeUpdates[i].My_Messages {
+			nodeUpdates[i].My_Messages[j].Entries = nil
 		}
 	}
 }

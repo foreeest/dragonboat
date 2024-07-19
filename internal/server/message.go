@@ -18,11 +18,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	pb "github.com/foreeest/dragonboat/raftpb"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 type delayed struct {
-	m    pb.Message
+	m    pb.MY_Message
 	tick uint64
 }
 
@@ -30,9 +30,9 @@ type delayed struct {
 type MessageQueue struct {
 	ch            chan struct{}
 	rl            *RateLimiter
-	left          []pb.Message
-	right         []pb.Message
-	nodrop        []pb.Message
+	left          []pb.MY_Message
+	right         []pb.MY_Message
+	nodrop        []pb.MY_Message
 	delayed       []delayed
 	tick          uint64
 	cycle         uint64
@@ -52,9 +52,9 @@ func NewMessageQueue(size uint64,
 		rl:            NewRateLimiter(maxMemorySize),
 		size:          size,
 		lazyFreeCycle: lazyFreeCycle,
-		left:          make([]pb.Message, size),
-		right:         make([]pb.Message, size),
-		nodrop:        make([]pb.Message, 0),
+		left:          make([]pb.MY_Message, size),
+		right:         make([]pb.MY_Message, size),
+		nodrop:        make([]pb.MY_Message, 0),
 		delayed:       make([]delayed, 0),
 	}
 	if ch {
@@ -91,8 +91,8 @@ func (q *MessageQueue) Ch() <-chan struct{} {
 	return q.ch
 }
 
-func (q *MessageQueue) targetQueue() []pb.Message {
-	var t []pb.Message
+func (q *MessageQueue) targetQueue() []pb.MY_Message {
+	var t []pb.MY_Message
 	if q.leftInWrite {
 		t = q.left
 	} else {
@@ -102,7 +102,7 @@ func (q *MessageQueue) targetQueue() []pb.Message {
 }
 
 // Add adds the specified message to the queue.
-func (q *MessageQueue) Add(msg pb.Message) (bool, bool) {
+func (q *MessageQueue) Add(msg pb.MY_Message) (bool, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.idx >= q.size {
@@ -122,7 +122,7 @@ func (q *MessageQueue) Add(msg pb.Message) (bool, bool) {
 
 // AddDelayed adds the specified message to the queue and makes sure that the
 // message will stay in the queue for at least delay ticks.
-func (q *MessageQueue) AddDelayed(msg pb.Message, delay uint64) bool {
+func (q *MessageQueue) AddDelayed(msg pb.MY_Message, delay uint64) bool {
 	if msg.Type != pb.SnapshotStatus {
 		panic("not a snapshot status message")
 	}
@@ -137,7 +137,7 @@ func (q *MessageQueue) AddDelayed(msg pb.Message, delay uint64) bool {
 }
 
 // MustAdd adds the specified message to the queue.
-func (q *MessageQueue) MustAdd(msg pb.Message) bool {
+func (q *MessageQueue) MustAdd(msg pb.MY_Message) bool {
 	if msg.CanDrop() {
 		panic("not a snapshot or unreachable message")
 	}
@@ -150,7 +150,7 @@ func (q *MessageQueue) MustAdd(msg pb.Message) bool {
 	return true
 }
 
-func (q *MessageQueue) tryAdd(msg pb.Message) bool {
+func (q *MessageQueue) tryAdd(msg pb.MY_Message) bool {
 	if !q.rl.Enabled() || msg.Type != pb.Replicate {
 		return true
 	}
@@ -177,12 +177,12 @@ func (q *MessageQueue) gc() {
 	}
 }
 
-func (q *MessageQueue) getDelayed() []pb.Message {
+func (q *MessageQueue) getDelayed() []pb.MY_Message {
 	if len(q.delayed) == 0 {
 		return nil
 	}
 	sz := len(q.delayed)
-	var result []pb.Message
+	var result []pb.MY_Message
 	tick := atomic.LoadUint64(&q.tick)
 	for idx, rec := range q.delayed {
 		if rec.tick < tick {
@@ -198,7 +198,7 @@ func (q *MessageQueue) getDelayed() []pb.Message {
 }
 
 // Get returns everything current in the queue.
-func (q *MessageQueue) Get() []pb.Message {
+func (q *MessageQueue) Get() []pb.MY_Message {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.cycle++
@@ -215,10 +215,10 @@ func (q *MessageQueue) Get() []pb.Message {
 		return t[:sz]
 	}
 
-	var result []pb.Message
+	var result []pb.MY_Message
 	if len(q.nodrop) > 0 {
 		ssm := q.nodrop
-		q.nodrop = make([]pb.Message, 0)
+		q.nodrop = make([]pb.MY_Message, 0)
 		result = append(result, ssm...)
 	}
 	delayed := q.getDelayed()

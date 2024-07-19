@@ -20,9 +20,9 @@ import (
 
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func TestSnapshotJobCanBeCreatedInSavedMode(t *testing.T) {
@@ -47,7 +47,7 @@ func TestSnapshotJobCanBeCreatedInStreamingMode(t *testing.T) {
 
 func TestSendSavedSnapshotPutsAllChunksInCh(t *testing.T) {
 	fs := vfs.GetTestFS()
-	m := pb.Message{
+	m := pb.MY_Message{
 		Type: pb.InstallSnapshot,
 		Snapshot: pb.Snapshot{
 			FileSize: 1024 * 1024 * 512,

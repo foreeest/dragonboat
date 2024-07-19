@@ -27,14 +27,14 @@ import (
 
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/logdb"
-	"github.com/foreeest/dragonboat/internal/logdb/kv/pebble"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/logger"
-	"github.com/foreeest/dragonboat/raftio"
-	sm "github.com/foreeest/dragonboat/statemachine"
+	"github.com/lni/dragonboat/v4"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/logdb"
+	"github.com/lni/dragonboat/v4/internal/logdb/kv/pebble"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/logger"
+	"github.com/lni/dragonboat/v4/raftio"
+	sm "github.com/lni/dragonboat/v4/statemachine"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/settings"
 )
 
 const (
@@ -656,7 +656,7 @@ eof:
 }
 
 // Unmarshal unmarshals the message instance using the input byte slice.
-func (m *Message) Unmarshal(dAtA []byte) error {
+func (m *MY_Message) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -705,10 +705,10 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 				}
 			}
 		case 2:
-			if wireType != 0 {
+			if wireType != 2 {// 这里代表的是length_delimit类型（长度前缀的类型），目前先听从chatgpt的意见
 				return fmt.Errorf("proto: wrong wireType = %d for field To", wireType)
 			}
-			m.To = 0
+			var byteLen int// 读取内容的长度（参考change_bottom文档的说明）
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowRaft
@@ -718,11 +718,34 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.To |= (uint64(b) & 0x7F) << shift
+				byteLen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if byteLen < 0 {
+				return ErrInvalidLengthRaft
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			//
+			m.To = nil // 清空之前的内容
+			for i := iNdEx; i < postIndex; i += 8 {
+				if i+8 > postIndex {
+					return io.ErrUnexpectedEOF
+				}
+				m.To = append(m.To, binary.LittleEndian.Uint64(dAtA[i:i+8]))
+			}
+			//m.To = append(m.To[:0], dAtA[iNdEx:postIndex]...)
+			//if m.To == nil {
+				//m.To = []uint64{}
+			//}// 这块可以参考Entry反序列化的方式来更改，但是entry数据结构更加复杂，所以代码逻辑更加复杂
+			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
@@ -982,7 +1005,7 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 	return nil
 }
 
-func (m *Message) entryCount(dAtA []byte) int {
+func (m *MY_Message) entryCount(dAtA []byte) int {
 	l := len(dAtA)
 	iNdEx := 0
 	count := 0
@@ -1016,7 +1039,7 @@ func (m *Message) entryCount(dAtA []byte) int {
 	}
 	return count
 }
-
+//messagebatch这块查看messagebatch.go文件，不需要修改。
 func (m *MessageBatch) messageCount(dAtA []byte) int {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1110,9 +1133,9 @@ func (m *MessageBatch) Unmarshal(dAtA []byte) error {
 			}
 			if len(m.Requests) == 0 {
 				count := m.messageCount(dAtA[postIndex:]) + 1
-				m.Requests = make([]Message, 0, count)
+				m.Requests = make([]MY_Message, 0, count)
 			}
-			m.Requests = append(m.Requests, Message{})
+			m.Requests = append(m.Requests, MY_Message{})
 			if err := m.Requests[len(m.Requests)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -1207,19 +1230,69 @@ func (m *MessageBatch) Unmarshal(dAtA []byte) error {
 }
 
 // SizeUpperLimit returns the upper limit size of the message.
-func (m *Message) SizeUpperLimit() int {
+//func (m *MY_Message) SizeUpperLimit() int {
+	//l := 0
+	//l += (16 * 12)
+	//l += m.Snapshot.Size()
+	//if len(m.Entries) > 0 {
+		//for _, e := range m.Entries {
+			//l += 16
+			//l += e.SizeUpperLimit()
+		//}
+	//}
+	//return l
+//}
+
+// SizeUpperLimit returns the upper limit size of the message batch.
+// func (m *MessageBatch) SizeUpperLimit() int {
+// 	l := 0
+// 	l += (16 * 3) + len(m.SourceAddress)
+// 	for _, msg := range m.Requests {
+// 		l += 16
+// 		l += msg.SizeUpperLimit()
+// 	}
+// 	return l
+// }
+//SizeUpperLimit returns the upper limit size of the message.
+func (m *MY_Message) SizeUpperLimit() int {
 	l := 0
-	l += (16 * 12)
-	l += m.Snapshot.Size()
-	if len(m.Entries) > 0 {
+	// Calculate the upper limit for each field in MY_Message
+	l += 1 + sovRaft(uint64(m.Type)) // MessageType
+	for _, to := range m.To {        // To (slice of uint64)
+		l += 1 + sovRaft(to)
+	}
+	l += 1 + sovRaft(m.From)         // From
+	l += 1 + sovRaft(m.ShardID)      // ShardID
+	l += 1 + sovRaft(m.Term)         // Term
+	l += 1 + sovRaft(m.LogTerm)      // LogTerm
+	l += 1 + sovRaft(m.LogIndex)     // LogIndex
+	l += 1 + sovRaft(m.Commit)       // Commit
+	l += 1 + 1                       // Reject (boolean is usually 1 byte)
+	l += 1 + sovRaft(m.Hint)         // Hint
+	if len(m.Entries) > 0 {          // Entries (slice of Entry)
 		for _, e := range m.Entries {
-			l += 16
-			l += e.SizeUpperLimit()
+			l += 1 + e.SizeUpperLimit()
 		}
 	}
+	l += 1 + m.Snapshot.Size()       // Snapshot
+	l += 1 + sovRaft(m.HintHigh)     // HintHigh
 	return l
 }
-
+// func (m *MY_Message) SizeUpperLimit() int {
+// 	l := 0
+// 	l += (16 * 11)
+// 	l += m.Snapshot.Size()
+// 	for _, to := range m.To {        // To (slice of uint64)
+// 		l += 1 + sovRaft(to)
+// 	}
+// 	if len(m.Entries) > 0 {
+// 		for _, e := range m.Entries {
+// 			l += 16
+// 			l += e.SizeUpperLimit()
+// 		}
+// 	}
+// 	return l
+// }
 // SizeUpperLimit returns the upper limit size of the message batch.
 func (m *MessageBatch) SizeUpperLimit() int {
 	l := 0
@@ -1228,5 +1301,7 @@ func (m *MessageBatch) SizeUpperLimit() int {
 		l += 16
 		l += msg.SizeUpperLimit()
 	}
+	l += 1 + sovRaft(uint64(m.BinVer)) // Convert m.BinVer from uint32 to uint64
 	return l
 }
+

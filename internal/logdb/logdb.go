@@ -21,11 +21,11 @@ to import this package.
 package logdb
 
 import (
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/logdb/kv"
-	"github.com/foreeest/dragonboat/logger"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/logdb/kv"
+	"github.com/lni/dragonboat/v4/logger"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 var (

@@ -52,16 +52,16 @@ import (
 	circuit "github.com/lni/goutils/netutil/rubyist/circuitbreaker"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/invariants"
-	"github.com/foreeest/dragonboat/internal/registry"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/logger"
-	ct "github.com/foreeest/dragonboat/plugin/chan"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/invariants"
+	"github.com/lni/dragonboat/v4/internal/registry"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/logger"
+	ct "github.com/lni/dragonboat/v4/plugin/chan"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 const (
@@ -94,8 +94,8 @@ type IMessageHandler interface {
 // Raft messages.
 type ITransport interface {
 	Name() string
-	Send(pb.Message) bool
-	SendSnapshot(pb.Message) bool
+	Send(pb.MY_Message) bool
+	SendSnapshot(pb.MY_Message) bool
 	GetStreamSink(shardID uint64, replicaID uint64) *Sink
 	Close() error
 }
@@ -113,7 +113,7 @@ type StreamChunkSendFunc func(pb.Chunk) (pb.Chunk, bool)
 type SendMessageBatchFunc func(pb.MessageBatch) (pb.MessageBatch, bool)
 
 type sendQueue struct {
-	ch chan pb.Message
+	ch chan pb.MY_Message
 	rl *server.RateLimiter
 }
 
@@ -121,14 +121,14 @@ func (sq *sendQueue) rateLimited() bool {
 	return sq.rl.RateLimited()
 }
 
-func (sq *sendQueue) increase(msg pb.Message) {
+func (sq *sendQueue) increase(msg pb.MY_Message) {
 	if msg.Type != pb.Replicate {
 		return
 	}
 	sq.rl.Increase(pb.GetEntrySliceInMemSize(msg.Entries))
 }
 
-func (sq *sendQueue) decrease(msg pb.Message) {
+func (sq *sendQueue) decrease(msg pb.MY_Message) {
 	if msg.Type != pb.Replicate {
 		return
 	}
@@ -220,7 +220,7 @@ func NewTransport(nhConfig config.NodeHostConfig,
 	}
 	chunks := NewChunk(t.handleRequest,
 		t.snapshotReceived, t.dir, t.nhConfig.GetDeploymentID(), fs)
-	t.trans = create(nhConfig, t.handleRequest, chunks.Add) // 只有一个UDP
+	t.trans = create(nhConfig, t.handleRequest, chunks.Add)
 	t.chunks = chunks
 	t.ctx, t.cancel = context.WithCancel(context.Background())
 	t.mu.queues = make(map[string]sendQueue)
@@ -236,7 +236,7 @@ func NewTransport(nhConfig config.NodeHostConfig,
 	t.metrics = newTransportMetrics(true, msgConn, ssCount)
 
 	plog.Infof("transport type: %s", t.trans.Name())
-	if err := t.trans.Start(); err != nil { // 这里是收信息的总函数，Start()
+	if err := t.trans.Start(); err != nil {
 		plog.Errorf("transport failed to start %v", err)
 		if cerr := t.trans.Close(); cerr != nil {
 			plog.Errorf("failed to close the transport module %v", cerr)
@@ -343,7 +343,7 @@ func (t *Transport) notifyUnreachable(addr string, affected nodeMap) {
 //
 // The generic async send Go pattern used in Send() is found in CockroachDB's
 // codebase.
-func (t *Transport) Send(req pb.Message) bool {
+func (t *Transport) Send(req pb.MY_Message) bool {
 	v, _ := t.send(req)
 	if !v {
 		t.metrics.messageSendFailure(1)
@@ -351,14 +351,17 @@ func (t *Transport) Send(req pb.Message) bool {
 	return v
 }
 
-func (t *Transport) send(req pb.Message) (bool, failedSend) {
+func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 	if req.Type == pb.InstallSnapshot {
 		panic("snapshot message must be sent via its own channel.")
 	}
-	toReplicaID := req.To
+	//JPF: here will be a loop ??
+
+	toReplicaID := req.To[0]
+
 	shardID := req.ShardID
 	from := req.From
-	addr, key, err := t.resolver.Resolve(shardID, toReplicaID)
+	addr, key, err := t.resolver.Resolve(shardID, toReplicaID) //// IResolver converts the (shard id, replica id) tuple to network address.
 	if err != nil {
 		return false, unknownTarget
 	}
@@ -372,7 +375,7 @@ func (t *Transport) send(req pb.Message) (bool, failedSend) {
 	sq, ok := t.mu.queues[key]
 	if !ok {
 		sq = sendQueue{
-			ch: make(chan pb.Message, sendQueueLen),
+			ch: make(chan pb.MY_Message, sendQueueLen),
 			rl: server.NewRateLimiter(t.nhConfig.MaxSendQueueSize),
 		}
 		t.mu.queues[key] = sq
@@ -389,7 +392,7 @@ func (t *Transport) send(req pb.Message) (bool, failedSend) {
 			if !t.connectAndProcess(addr, sq, from, affected) {
 				t.notifyUnreachable(addr, affected)
 			}
-			shutdownQueue() // 通信结束，删掉sq
+			shutdownQueue()
 		})
 	}
 	if sq.rateLimited() {
@@ -422,7 +425,7 @@ func (t *Transport) connectAndProcess(remoteHost string,
 				t.sourceID, remoteHost, err)
 			return err
 		}
-		defer conn.Close() // 跑完processMessage 来这Close
+		defer conn.Close()
 		breaker.Success()
 		if successes == 0 || consecFailures > 0 {
 			plog.Debugf("message streaming to %s established", remoteHost)
@@ -450,12 +453,11 @@ func (t *Transport) processMessages(remoteHost string,
 		BinVer:        raftio.TransportBinVersion,
 	}
 	did := t.nhConfig.GetDeploymentID()
-	requests := make([]pb.Message, 0)
+	requests := make([]pb.MY_Message, 0)
 	for {
 		idleTimer.Reset(idleTimeout)
 		select {
 		case <-t.stopper.ShouldStop():
-			// fmt.Printf("quit from processMessage\n") // 还真走这里了
 			return nil
 		case <-idleTimer.C:
 			return nil
@@ -488,13 +490,13 @@ func (t *Transport) processMessages(remoteHost string,
 				twoBatch = true
 				batch.Requests = requests[:len(requests)-1]
 			}
-			if err := t.sendMessageBatch(conn, batch); err != nil { // sendMessageBatch调用write message
+			if err := t.sendMessageBatch(conn, batch); err != nil {
 				plog.Errorf("send batch failed, target %s (%v), %d",
 					remoteHost, err, len(batch.Requests))
 				return err
 			}
 			if twoBatch {
-				batch.Requests = []pb.Message{requests[len(requests)-1]}
+				batch.Requests = []pb.MY_Message{requests[len(requests)-1]}
 				if err := t.sendMessageBatch(conn, batch); err != nil {
 					plog.Errorf("send batch failed, taret node %s (%v), %d",
 						remoteHost, err, len(batch.Requests))
@@ -508,13 +510,13 @@ func (t *Transport) processMessages(remoteHost string,
 	}
 }
 
-func lazyFree(reqs []pb.Message,
-	mb pb.MessageBatch) ([]pb.Message, pb.MessageBatch) {
+func lazyFree(reqs []pb.MY_Message,
+	mb pb.MessageBatch) ([]pb.MY_Message, pb.MessageBatch) {
 	if lazyFreeCycle > 0 {
 		for i := 0; i < len(reqs); i++ {
 			reqs[i].Entries = nil
 		}
-		mb.Requests = []pb.Message{}
+		mb.Requests = []pb.MY_Message{}
 	}
 	return reqs, mb
 }

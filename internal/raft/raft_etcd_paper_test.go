@@ -38,8 +38,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/foreeest/dragonboat/logger"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/logger"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func TestFollowerUpdateTermFromMessage(t *testing.T) {
@@ -69,7 +69,7 @@ func testUpdateTermFromMessage(t *testing.T, state State) {
 		ne(r.becomeLeader(), t)
 	}
 
-	ne(r.Handle(pb.Message{Type: pb.Replicate, Term: 2}), t)
+	ne(r.Handle(pb.MY_Message{Type: pb.Replicate, Term: 2}), t)
 
 	if r.term != 2 {
 		t.Errorf("term = %d, want %d", r.term, 2)
@@ -85,7 +85,7 @@ func testUpdateTermFromMessage(t *testing.T, state State) {
 // Reference: section 5.1
 func TestRejectStaleTermMessage(t *testing.T) {
 	called := false
-	fakeStep := func(r *raft, m pb.Message) error {
+	fakeStep := func(r *raft, m pb.MY_Message) error {
 		called = true
 		return nil
 	}
@@ -93,7 +93,7 @@ func TestRejectStaleTermMessage(t *testing.T) {
 	r.handle = fakeStep
 	r.loadState(pb.State{Term: 2})
 
-	ne(r.Handle(pb.Message{Type: pb.Replicate, Term: r.term - 1}), t)
+	ne(r.Handle(pb.MY_Message{Type: pb.Replicate, Term: r.term - 1}), t)
 
 	if called {
 		t.Errorf("stepFunc called = %v, want %v", called, false)
@@ -129,9 +129,13 @@ func TestLeaderBcastBeat(t *testing.T) {
 
 	msgs := r.readMessages()
 	sort.Sort(messageSlice(msgs))
-	wmsgs := []pb.Message{
-		{From: 1, To: 2, Term: 1, Type: pb.Heartbeat},
-		{From: 1, To: 3, Term: 1, Type: pb.Heartbeat},
+	var to_list_2 []uint64
+	to_list_2 = append(to_list_2, 2)
+	var to_list_3 []uint64
+	to_list_3 = append(to_list_3, 3)
+	wmsgs := []pb.MY_Message{
+		{From: 1, To: to_list_2, Term: 1, Type: pb.Heartbeat},
+		{From: 1, To: to_list_3, Term: 1, Type: pb.Heartbeat},
 	}
 	if !reflect.DeepEqual(msgs, wmsgs) {
 		t.Errorf("msgs = %v, want %v", msgs, wmsgs)

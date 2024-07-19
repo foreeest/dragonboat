@@ -39,25 +39,25 @@ import (
 	"github.com/lni/goutils/syncutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/foreeest/dragonboat/client"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/fileutil"
-	"github.com/foreeest/dragonboat/internal/id"
-	"github.com/foreeest/dragonboat/internal/invariants"
-	"github.com/foreeest/dragonboat/internal/logdb"
-	"github.com/foreeest/dragonboat/internal/registry"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/tests"
-	"github.com/foreeest/dragonboat/internal/transport"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	chantrans "github.com/foreeest/dragonboat/plugin/chan"
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
-	sm "github.com/foreeest/dragonboat/statemachine"
-	"github.com/foreeest/dragonboat/tools"
-	"github.com/foreeest/dragonboat/tools/upgrade310"
+	"github.com/lni/dragonboat/v4/client"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/fileutil"
+	"github.com/lni/dragonboat/v4/internal/id"
+	"github.com/lni/dragonboat/v4/internal/invariants"
+	"github.com/lni/dragonboat/v4/internal/logdb"
+	"github.com/lni/dragonboat/v4/internal/registry"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/tests"
+	"github.com/lni/dragonboat/v4/internal/transport"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	chantrans "github.com/lni/dragonboat/v4/plugin/chan"
+	"github.com/lni/dragonboat/v4/raftio"
+	pb "github.com/lni/dragonboat/v4/raftpb"
+	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/lni/dragonboat/v4/tools"
+	"github.com/lni/dragonboat/v4/tools/upgrade310"
 )
 
 const (
@@ -687,9 +687,9 @@ func TestTCPTransportIsUsedByDefault(t *testing.T) {
 	to := &testOption{
 		tf: func(nh *NodeHost) {
 			tt := nh.transport.(*transport.Transport)
-			if tt.GetTrans().Name() != transport.UDPTransportName {
+			if tt.GetTrans().Name() != transport.TCPTransportName {
 				t.Errorf("transport type name %s, expect %s",
-					tt.GetTrans().Name(), transport.UDPTransportName)
+					tt.GetTrans().Name(), transport.TCPTransportName)
 			}
 		},
 		noElection: true,

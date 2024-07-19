@@ -31,14 +31,14 @@ import (
 	"github.com/lni/goutils/netutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/registry"
-	"github.com/foreeest/dragonboat/internal/rsm"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/internal/vfs"
-	"github.com/foreeest/dragonboat/raftio"
-	"github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/registry"
+	"github.com/lni/dragonboat/v4/internal/rsm"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/lni/dragonboat/v4/raftio"
+	"github.com/lni/dragonboat/v4/raftpb"
 )
 
 var serverAddress = fmt.Sprintf("localhost:%d", getTestPort())
@@ -389,7 +389,7 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 			To:      2,
 			ShardID: 100,
 		}
-		done := trans.Send(msg) // 发送
+		done := trans.Send(msg)
 		if !done {
 			t.Errorf("failed to send message")
 		}
@@ -398,7 +398,7 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 	for i := 0; i < 200; i++ {
 		time.Sleep(100 * time.Millisecond)
 		count := handler.getRequestCount(100, 2)
-		plog.Infof("%d test messages received", count) // over
+		plog.Infof("%d test messages received", count)
 		if count == 20 {
 			done = true
 			break
@@ -443,15 +443,7 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 func TestMessageCanBeSent(t *testing.T) {
 	fs := vfs.GetTestFS()
 	defer leaktest.AfterTest(t)()
-	// testMessageCanBeSent(t, false, settings.LargeEntitySize+1, fs)
-	// fmt.Printf("1 through")
-	// os.Exit(1)
-	/*
-		PerConnectionSendBufSize:       2 * 1024 * 1024,
-		PerConnectionRecvBufSize:       2 * 1024 * 1024,
-	*/
-	testMessageCanBeSent(t, false, 1, fs)
-	testMessageCanBeSent(t, true, 1, fs)
+	testMessageCanBeSent(t, false, settings.LargeEntitySize+1, fs)
 	testMessageCanBeSent(t, false, recvBufSize/2, fs)
 	testMessageCanBeSent(t, false, recvBufSize+1, fs)
 	testMessageCanBeSent(t, false, perConnBufSize+1, fs)
@@ -932,7 +924,6 @@ func TestSnapshotWithNotMatchedBinVerWillBeDropped(t *testing.T) {
 		return c, true
 	}
 	testSnapshotWithNotMatchedDBVWillBeDropped(t, f, true, fs)
-	fmt.Printf("through 1")
 	testSnapshotWithNotMatchedDBVWillBeDropped(t, f, false, fs)
 }
 

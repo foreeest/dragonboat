@@ -29,11 +29,11 @@ import (
 var (
 	// ErrBadMessage is the error returned to indicate the incoming message is
 	// corrupted.
-	ErrBadMessage       = errors.New("invalid message")
-	errPoisonReceived   = errors.New("poison received")
-	magicNumber         = [2]byte{0xAE, 0x7D}
-	poisonNumber        = [2]byte{0x0, 0x0}
-	payloadBufferSize   = settings.SnapshotChunkSize + 1024*128
+	ErrBadMessage     = errors.New("invalid message")
+	errPoisonReceived = errors.New("poison received")
+	magicNumber       = [2]byte{0xAE, 0x7D}
+	poisonNumber      = [2]byte{0x0, 0x0}
+	payloadBufferSize = settings.SnapshotChunkSize + 1024*128
 	magicNumberDuration = 1 * time.Second
 	headerDuration      = 2 * time.Second
 	// readDuration        = 5 * time.Second
@@ -45,7 +45,7 @@ var (
 
 const (
 	// UDPTransportName is the name of the tcp transport module.
-	UDPTransportName         = "Go-Udp-Transport"
+	UDPTransportName         = "go-udp-transport"
 	requestHeaderSize        = 18
 	raftType          uint16 = 100
 	snapshotType      uint16 = 200
@@ -195,7 +195,7 @@ func readMessage(conn *net.UDPConn,
 	var buffer []byte           // 先整条信息读出来，再逐步分解
 	buffer = make([]byte, 1500) //数据报最大大小是1500
 	//gpt4o:当缓冲区 p 的大小大于从网络连接中读取的数据时，不会发生错误或异常，只是缓冲区 p 的一部分会被使用来存储读取到的数据，其余部分保持不变
-	n, buffer, err := readMessage_to_buff(conn, buffer) //ReadFromUDP,返回*UDPAddr
+	n, buffer, err := readMessage_to_buff(conn, buffer)//ReadFromUDP,返回*UDPAddr
 	if err != nil {
 		return requestHeader{}, nil, err
 	}
@@ -334,6 +334,7 @@ type UDP struct {
 
 var _ raftio.ITransport = (*UDP)(nil)
 
+
 // 上面的decode 和encode,APPL 头部不改
 // FIXME:
 // context.Context is ignored
@@ -370,7 +371,6 @@ func (t *UDP) serveConn(conn *net.UDPConn, addr *net.UDPAddr) error {
 		if err != nil {
 			return err
 		}
-		// plog.Infof("1 msg recieved")
 		if rheader.method == raftType {
 			batch := pb.MessageBatch{}
 			if err := batch.Unmarshal(buf); err != nil {
@@ -395,7 +395,6 @@ func (t *UDP) Start() error {
 	address := t.nhConfig.GetListenAddress()
 	addr, _ := t.get_udp_Addr(address) // get函数：从str到UDPConn
 	conn, err := net.ListenUDP("udp", addr)
-	// plog.Infof("just a test")
 	if err != nil {
 		fmt.Println("listen UDP error", err)
 		os.Exit(1) // 直接退出

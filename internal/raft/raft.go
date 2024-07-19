@@ -30,11 +30,11 @@ import (
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/random"
 
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/server"
-	"github.com/foreeest/dragonboat/internal/settings"
-	"github.com/foreeest/dragonboat/logger"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/lni/dragonboat/v4/config"
+	"github.com/lni/dragonboat/v4/internal/server"
+	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/lni/dragonboat/v4/logger"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 var (
@@ -93,8 +93,8 @@ func ShardID(shardID uint64) string {
 	return logutil.ShardID(shardID)
 }
 
-type handlerFunc func(pb.Message) error
-type stepFunc func(*raft, pb.Message) error
+type handlerFunc func(pb.MY_Message) error
+type stepFunc func(*raft, pb.MY_Message) error
 
 // Status is the struct that captures the status of a raft node.
 type Status struct {
@@ -211,7 +211,10 @@ type raft struct {
 	leaderUpdate              *pb.LeaderUpdate
 	readIndex                 *readIndex
 	matched                   []uint64
-	msgs                      []pb.Message
+	//msgs                      []pb.Message
+	//JPF : add My_msgs
+	My_msgs []pb.MY_Message
+	//JPF : add My_msgs
 	droppedReadIndexes        []pb.SystemCtx
 	droppedEntries            []pb.Entry
 	readyToRead               []pb.ReadyToRead
@@ -247,10 +250,11 @@ func newRaft(c config.Config, logdb ILogDB) *raft {
 	}
 	rl := server.NewInMemRateLimiter(c.MaxInMemLogSize)
 	r := &raft{
-		shardID:          c.ShardID,
-		replicaID:        c.ReplicaID,
-		leaderID:         NoLeader,
-		msgs:             make([]pb.Message, 0),
+		shardID:   c.ShardID,
+		replicaID: c.ReplicaID,
+		leaderID:  NoLeader,
+		//msgs:             make([]pb.Message, 0),
+		My_msgs:          make([]pb.MY_Message, 0),
 		droppedEntries:   make([]pb.Entry, 0),
 		log:              newEntryLog(logdb, rl),
 		remotes:          make(map[uint64]*remote),
@@ -601,7 +605,7 @@ func (r *raft) nonLeaderTick() error {
 	// 6th paragraph section 5.2 of the raft paper
 	if !r.selfRemoved() && r.timeForElection() {
 		r.electionTick = 0
-		if err := r.Handle(pb.Message{
+		if err := r.Handle(pb.MY_Message{
 			From: r.replicaID,
 			Type: pb.Election,
 		}); err != nil {
@@ -623,7 +627,7 @@ func (r *raft) leaderTick() error {
 	if r.timeForCheckQuorum() {
 		r.electionTick = 0
 		if r.checkQuorum {
-			if err := r.Handle(pb.Message{
+			if err := r.Handle(pb.MY_Message{
 				From: r.replicaID,
 				Type: pb.CheckQuorum,
 			}); err != nil {
@@ -637,7 +641,7 @@ func (r *raft) leaderTick() error {
 	r.heartbeatTick++
 	if r.timeForHeartbeat() {
 		r.heartbeatTick = 0
-		if err := r.Handle(pb.Message{
+		if err := r.Handle(pb.MY_Message{
 			From: r.replicaID,
 			Type: pb.LeaderHeartbeat,
 		}); err != nil {
@@ -664,7 +668,7 @@ func (r *raft) setRandomizedElectionTimeout() {
 // send and broadcast functions
 //
 
-func (r *raft) finalizeMessageTerm(m pb.Message) pb.Message {
+func (r *raft) finalizeMessageTerm(m pb.MY_Message) pb.MY_Message {
 	if m.Term == 0 && m.Type == pb.RequestVote {
 		plog.Panicf("%s sending RequestVote with 0 term", r.describe())
 	}
@@ -680,10 +684,34 @@ func (r *raft) finalizeMessageTerm(m pb.Message) pb.Message {
 	return m
 }
 
-func (r *raft) send(m pb.Message) {
+// JPF: 下面的这个函数和上面的相比,仅更改形参和return
+func (r *raft) My_finalizeMessageTerm(m pb.MY_Message) pb.MY_Message {
+	if m.Term == 0 && m.Type == pb.RequestVote {
+		plog.Panicf("%s sending RequestVote with 0 term", r.describe())
+	}
+	if m.Term > 0 &&
+		!isRequestVoteMessage(m.Type) && m.Type != pb.RequestPreVoteResp {
+		plog.Panicf("%s term unexpectedly set for message type %d",
+			r.describe(), m.Type)
+	}
+	if !isRequestMessage(m.Type) &&
+		!isRequestVoteMessage(m.Type) && m.Type != pb.RequestPreVoteResp {
+		m.Term = r.term
+	}
+	return m
+}
+
+// JPF:My_send
+func (r *raft) My_send(m pb.MY_Message) {
+	m.From = r.replicaID
+	m = r.My_finalizeMessageTerm(m)
+	r.My_msgs = append(r.My_msgs, m)
+}
+
+func (r *raft) send(m pb.MY_Message) {
 	m.From = r.replicaID
 	m = r.finalizeMessageTerm(m)
-	r.msgs = append(r.msgs, m)
+	r.My_msgs = append(r.My_msgs, m)
 }
 
 func (r *raft) sendRateLimitMessage() {
@@ -703,15 +731,19 @@ func (r *raft) sendRateLimitMessage() {
 		notCommitedSz := getEntrySliceSize(r.log.getUncommittedEntries())
 		mv = max(inmemSz-notCommitedSz, 0)
 	}
-	r.send(pb.Message{
+	var To_send []uint64
+	To_send = append(To_send, r.leaderID)
+	r.send(pb.MY_Message{
 		Type: pb.RateLimit,
-		To:   r.leaderID,
+		To:   To_send,
 		Hint: mv,
 	})
 }
 
-func (r *raft) makeInstallSnapshotMessage(to uint64, m *pb.Message) uint64 {
-	m.To = to
+func (r *raft) makeInstallSnapshotMessage(to uint64, m *pb.MY_Message) uint64 {
+	var to_list []uint64
+	to_list = append(to_list, to)
+	m.To = to_list
 	m.Type = pb.InstallSnapshot
 	snapshot := r.log.snapshot()
 	if pb.IsEmptySnapshot(snapshot) {
@@ -735,15 +767,16 @@ func makeWitnessSnapshot(snapshot pb.Snapshot) pb.Snapshot {
 	return result
 }
 
+// 下面这个函数不再被broadcast调用
 func (r *raft) makeReplicateMessage(to uint64,
-	next uint64, maxSize uint64) (pb.Message, error) {
+	next uint64, maxSize uint64) (pb.MY_Message, error) {
 	term, err := r.log.term(next - 1)
 	if err != nil {
-		return pb.Message{}, err
+		return pb.MY_Message{}, err
 	}
 	entries, err := r.log.entries(next, maxSize)
 	if err != nil {
-		return pb.Message{}, err
+		return pb.MY_Message{}, err
 	}
 	if len(entries) > 0 {
 		lastIndex := entries[len(entries)-1].Index
@@ -758,8 +791,10 @@ func (r *raft) makeReplicateMessage(to uint64,
 	if _, ok := r.witnesses[to]; ok {
 		entries = makeMetadataEntries(entries)
 	}
-	return pb.Message{
-		To:       to,
+	var to_list []uint64
+	to_list = append(to_list, to)
+	return pb.MY_Message{
+		To:       to_list,
 		Type:     pb.Replicate,
 		LogIndex: next - 1,
 		LogTerm:  term,
@@ -767,6 +802,44 @@ func (r *raft) makeReplicateMessage(to uint64,
 		Commit:   r.log.committed,
 	}, nil
 }
+
+// JPF:上面这个函数不再被My_sendReplicateMessage调用,下面这个函数被调用
+func (r *raft) My_makeReplicateMessage(to uint64,
+	next uint64, maxSize uint64) (pb.MY_Message, error) {
+	term, err := r.log.term(next - 1)
+	if err != nil {
+		return pb.MY_Message{}, err
+	}
+	entries, err := r.log.entries(next, maxSize)
+	if err != nil {
+		return pb.MY_Message{}, err
+	}
+	if len(entries) > 0 {
+		lastIndex := entries[len(entries)-1].Index
+		expected := next - 1 + uint64(len(entries))
+		if lastIndex != expected {
+			plog.Panicf("%s expected last index in Replicate %d, got %d",
+				r.describe(), expected, lastIndex)
+		}
+	}
+	// Don't send actual log entry to witness as they won't replicate real message,
+	// unless there is a config change.
+	if _, ok := r.witnesses[to]; ok {
+		entries = makeMetadataEntries(entries)
+	}
+	var to_my_list []uint64
+	to_my_list = append(to_my_list, to)
+	return pb.MY_Message{
+		To:       to_my_list,
+		Type:     pb.Replicate,
+		LogIndex: next - 1,
+		LogTerm:  term,
+		Entries:  entries,
+		Commit:   r.log.committed,
+	}, nil
+}
+
+// JPF 上面的函数:My_makeReplicateMessage
 
 func makeMetadataEntries(entries []pb.Entry) []pb.Entry {
 	me := make([]pb.Entry, 0, len(entries))
@@ -784,6 +857,7 @@ func makeMetadataEntries(entries []pb.Entry) []pb.Entry {
 	return me
 }
 
+// 下面这个函数不再被broadcastReplicateMessage使用
 func (r *raft) sendReplicateMessage(to uint64) {
 	var rp *remote
 	if v, ok := r.remotes[to]; ok {
@@ -818,6 +892,118 @@ func (r *raft) sendReplicateMessage(to uint64) {
 	r.send(m)
 }
 
+// 上面这个函数不再被broadcastReplicateMessage使用
+// JPF MY_sendRelicateMessage down
+func (r *raft) My_sendReplicateMessage(to_nid [32]uint64, to_nid_next int) {
+	var remote_and_nonvoting_to []*remote
+	var remote_and_nonvoting_nid []uint64
+	var witness_to []*remote
+	var witness_nid []uint64
+	for i := 0; i < to_nid_next; i++ {
+		var to = to_nid[i]
+		var rp *remote
+		if v, ok := r.remotes[to]; ok {
+			rp = v
+			remote_and_nonvoting_to = append(remote_and_nonvoting_to, rp)
+			remote_and_nonvoting_nid = append(remote_and_nonvoting_nid, to)
+		} else if v, ok := r.nonVotings[to]; ok {
+			rp = v
+			remote_and_nonvoting_to = append(remote_and_nonvoting_to, rp)
+			remote_and_nonvoting_nid = append(remote_and_nonvoting_nid, to)
+		} else {
+			rp, ok = r.witnesses[to]
+			if !ok {
+				plog.Panicf("%s failed to get the remote instance", r.describe())
+			}
+			witness_to = append(witness_to, rp)
+			witness_nid = append(witness_nid, to)
+		}
+	}
+	//JPF:remote_and_nonvoting,map
+	map_pb_remote_and_nonvoting := make(map[uint64]pb.MY_Message)
+	map_pb_witness := make(map[uint64]pb.MY_Message)
+	var remote_and_nonvoting_to_len = len(remote_and_nonvoting_to)
+	var witness_to_len = len(witness_to)
+	for i := 0; i < remote_and_nonvoting_to_len; i++ {
+		var rp = remote_and_nonvoting_to[i]
+		var rp_nid = remote_and_nonvoting_nid[i]
+		var to_send_messages pb.MY_Message
+		to_send_messages, ok := map_pb_remote_and_nonvoting[rp.next]
+		if ok { //JPF:这个index的my_message已经被创建，只需要给它的To appned就好了
+			to_send_messages.To = append(to_send_messages.To, rp_nid)
+		} else { //JPF:需要创建my_message,并给到map里面
+			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+			if err != nil {
+				// log not available due to compaction, send snapshot
+				if !rp.isActive() {
+					plog.Warningf("%s, %s is not active, sending snapshot is skipped",
+						r.describe(), ReplicaID(rp_nid))
+					return
+				}
+				var m_message pb.MY_Message
+				index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
+				plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
+					r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
+				rp.becomeSnapshot(index)
+				r.send(m_message)
+				continue
+				//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
+			} else if len(m.Entries) > 0 {
+				//JPF:如果 makeReplicateMessage 方法没有返回错误，
+				//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+				lastIndex := m.Entries[len(m.Entries)-1].Index
+				rp.progress(lastIndex)
+			}
+			to_send_messages = m
+			//创建条目
+			map_pb_remote_and_nonvoting[rp.next] = to_send_messages
+		}
+
+	} //JPF:现在map中包含了各种index的条目 对应的 My_message, 接下来发送它
+	for _, my_message_to_send := range map_pb_remote_and_nonvoting {
+		r.My_send(my_message_to_send) //
+	} //
+	//JPF:现在来处理给witness发送的
+	for i := 0; i < witness_to_len; i++ {
+		var rp = witness_to[i]
+		var rp_nid = witness_nid[i]
+		var to_send_messages_witness pb.MY_Message
+		to_send_messages_witness, ok := map_pb_witness[rp.next]
+		if ok {
+			to_send_messages_witness.To = append(to_send_messages_witness.To, rp_nid)
+		} else {
+			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+			if err != nil {
+				// log not available due to compaction, send snapshot
+				if !rp.isActive() {
+					plog.Warningf("%s, %s is not active, sending snapshot is skipped",
+						r.describe(), ReplicaID(rp_nid))
+					return
+				}
+				var m_message pb.MY_Message
+				index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
+				plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
+					r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
+				rp.becomeSnapshot(index)
+				r.send(m_message)
+				continue
+				//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
+			} else if len(m.Entries) > 0 {
+				//JPF:如果 makeReplicateMessage 方法没有返回错误，
+				//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+				lastIndex := m.Entries[len(m.Entries)-1].Index
+				rp.progress(lastIndex)
+			}
+			to_send_messages_witness = m
+			map_pb_witness[rp.next] = to_send_messages_witness
+		}
+	}
+	for _, my_message_witness_to_send := range map_pb_witness {
+		r.My_send(my_message_witness_to_send)
+	}
+}
+
+// JPF MY_sendRelicateMessage up
 func (r *raft) broadcastReplicateMessage() {
 	r.mustBeLeader()
 	for nid := range r.nonVotings {
@@ -825,22 +1011,35 @@ func (r *raft) broadcastReplicateMessage() {
 			plog.Panicf("%s nonVoting is broadcasting Replicate msg", r.describe())
 		}
 	}
+	//JPF:下面是原代码
+	// for _, nid := range r.nodes() {
+	// 	if nid != r.replicaID {
+	// 		r.sendReplicateMessage(nid)
+	// 	}
+	// }
+	//上面是原代码
+	//JPF :下面是我修改后的代码
+	var to_nid [32]uint64 //这里假设集群机器数量最大为32个
+	var to_nid_next = 0
 	for _, nid := range r.nodes() {
 		if nid != r.replicaID {
-			r.sendReplicateMessage(nid)
+			to_nid[to_nid_next] = nid
+			to_nid_next++
 		}
 	}
-	// foreeest：现在只需要调用一次sendHeartbeatMessage，但是需要1byte来标注需要发给哪些node
+	r.My_sendReplicateMessage(to_nid, to_nid_next)
 }
 
 func (r *raft) sendHeartbeatMessage(to uint64,
 	hint pb.SystemCtx, match uint64) {
 	commit := min(match, r.log.committed)
-	r.send(pb.Message{
-		To:       to,
+	var to_list []uint64
+	to_list = append(to_list, to)
+	r.send(pb.MY_Message{
+		To:       to_list,
 		Type:     pb.Heartbeat,
 		Commit:   commit,
-		Hint:     hint.Low, // hint是？
+		Hint:     hint.Low,
 		HintHigh: hint.High,
 	})
 }
@@ -849,8 +1048,8 @@ func (r *raft) sendHeartbeatMessage(to uint64,
 // protocol.
 func (r *raft) broadcastHeartbeatMessage() {
 	r.mustBeLeader()
-	if r.readIndex.hasPendingRequest() { // PendingRequest,应该是跟nonVotings相关的东西
-		ctx := r.readIndex.peepCtx() // not sure what is this
+	if r.readIndex.hasPendingRequest() {
+		ctx := r.readIndex.peepCtx()
 		r.broadcastHeartbeatMessageWithHint(ctx)
 	} else {
 		r.broadcastHeartbeatMessageWithHint(pb.SystemCtx{})
@@ -861,11 +1060,9 @@ func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
 	zeroCtx := pb.SystemCtx{}
 	for id, rm := range r.votingMembers() {
 		if id != r.replicaID {
-			r.sendHeartbeatMessage(id, ctx, rm.match) // rm维护远端节点的状态如Index；match，即匹配的
-			// 这里发的是匹配的和已经提交中的较小值
+			r.sendHeartbeatMessage(id, ctx, rm.match)
 		}
 	}
-	// foreeest：现在只需要调用一次sendHeartbeatMessage，但是需要1byte来标注需要发给哪些node
 	if ctx == zeroCtx {
 		for id, rm := range r.nonVotings {
 			r.sendHeartbeatMessage(id, zeroCtx, rm.match)
@@ -874,9 +1071,11 @@ func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
 }
 
 func (r *raft) sendTimeoutNowMessage(replicaID uint64) {
-	r.send(pb.Message{
+	var to_list []uint64
+	to_list = append(to_list, replicaID)
+	r.send(pb.MY_Message{
 		Type: pb.TimeoutNow,
-		To:   replicaID,
+		To:   to_list,
 	})
 }
 
@@ -939,10 +1138,10 @@ func (r *raft) appendEntries(entries []pb.Entry) error {
 	for i := range entries {
 		entries[i].Term = r.term
 		entries[i].Index = lastIndex + 1 + uint64(i)
-	}
+	} //
 	r.log.append(entries)
 	r.remotes[r.replicaID].tryUpdate(r.log.lastIndex())
-	if r.isSingleNodeQuorum() {
+	if r.isSingleNodeQuorum() { //检查是否为单节点集群并尝试提交日志:
 		if _, err := r.tryCommit(); err != nil {
 			return err
 		}
@@ -1157,9 +1356,11 @@ func (r *raft) preVoteCampaign() error {
 		if k == r.replicaID {
 			continue
 		}
-		r.send(pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, k)
+		r.send(pb.MY_Message{
 			Term:     r.term + 1,
-			To:       k,
+			To:       to_list,
 			Type:     pb.RequestPreVote,
 			LogIndex: index,
 			LogTerm:  lastTerm,
@@ -1198,9 +1399,11 @@ func (r *raft) campaign() error {
 		if k == r.replicaID {
 			continue
 		}
-		r.send(pb.Message{
+		var to_list []uint64
+		to_list = append(to_list, k)
+		r.send(pb.MY_Message{
 			Term:     term,
-			To:       k,
+			To:       to_list,
 			Type:     pb.RequestVote,
 			LogIndex: index,
 			LogTerm:  lastTerm,
@@ -1397,10 +1600,12 @@ func (r *raft) getPendingConfigChangeCount() int {
 // handler for various message types
 //
 
-func (r *raft) handleHeartbeatMessage(m pb.Message) error {
+func (r *raft) handleHeartbeatMessage(m pb.MY_Message) error {
 	r.log.commitTo(m.Commit)
-	r.send(pb.Message{
-		To:       m.From,
+	var to_list []uint64
+	to_list = append(to_list, m.From)
+	r.send(pb.MY_Message{
+		To:       to_list,
 		Type:     pb.HeartbeatResp,
 		Hint:     m.Hint,
 		HintHigh: m.HintHigh,
@@ -1408,12 +1613,14 @@ func (r *raft) handleHeartbeatMessage(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleInstallSnapshotMessage(m pb.Message) error {
+func (r *raft) handleInstallSnapshotMessage(m pb.MY_Message) error {
 	plog.Debugf("%s called handleInstallSnapshotMessage with snapshot from %s",
 		r.describe(), ReplicaID(m.From))
 	index, term := m.Snapshot.Index, m.Snapshot.Term
-	resp := pb.Message{
-		To:   m.From,
+	var to_list []uint64
+	to_list = append(to_list, m.From)
+	resp := pb.MY_Message{
+		To:   to_list,
 		Type: pb.ReplicateResp,
 	}
 	ok, err := r.restore(m.Snapshot)
@@ -1441,9 +1648,11 @@ func (r *raft) handleInstallSnapshotMessage(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleReplicateMessage(m pb.Message) error {
-	resp := pb.Message{
-		To:   m.From,
+func (r *raft) handleReplicateMessage(m pb.MY_Message) error {
+	var to_list []uint64
+	to_list = append(to_list, m.From)
+	resp := pb.MY_Message{
+		To:   to_list,
 		Type: pb.ReplicateResp,
 	}
 	if m.LogIndex < r.log.committed {
@@ -1504,7 +1713,7 @@ func isLeaderMessage(t pb.MessageType) bool {
 		t == pb.Heartbeat || t == pb.TimeoutNow || t == pb.ReadIndexResp
 }
 
-func (r *raft) dropRequestVoteFromHighTermNode(m pb.Message) bool {
+func (r *raft) dropRequestVoteFromHighTermNode(m pb.MY_Message) bool {
 	if !isRequestVoteMessage(m.Type) || !r.checkQuorum || m.Term <= r.term {
 		return false
 	}
@@ -1528,7 +1737,7 @@ func (r *raft) dropRequestVoteFromHighTermNode(m pb.Message) bool {
 	return false
 }
 
-func isPreVoteMessageWithExpectedHigherTerm(m pb.Message) bool {
+func isPreVoteMessageWithExpectedHigherTerm(m pb.MY_Message) bool {
 	return m.Type == pb.RequestPreVote ||
 		(m.Type == pb.RequestPreVoteResp && !m.Reject)
 }
@@ -1537,7 +1746,7 @@ func isPreVoteMessageWithExpectedHigherTerm(m pb.Message) bool {
 // message has a term value different from local node's term. it returns a
 // boolean flag indicating whether the message should be ignored.
 // see the 3rd paragraph, section 5.1 of the raft paper for details.
-func (r *raft) onMessageTermNotMatched(m pb.Message) bool {
+func (r *raft) onMessageTermNotMatched(m pb.MY_Message) bool {
 	if m.Term == 0 || m.Term == r.term {
 		return false
 	}
@@ -1579,7 +1788,9 @@ func (r *raft) onMessageTermNotMatched(m pb.Message) bool {
 		if m.Type == pb.RequestPreVote ||
 			(isLeaderMessage(m.Type) && (r.checkQuorum || r.preVote)) {
 			// see test TestFreeStuckCandidateWithCheckQuorum for details
-			r.send(pb.Message{To: m.From, Type: pb.NoOP})
+			var to_list []uint64
+			to_list = append(to_list, m.From)
+			r.send(pb.MY_Message{To: to_list, Type: pb.NoOP})
 		} else {
 			plog.Infof("%s ignored %s with lower term (%d) from %s",
 				r.describe(), m.Type, m.Term, ReplicaID(m.From))
@@ -1589,11 +1800,11 @@ func (r *raft) onMessageTermNotMatched(m pb.Message) bool {
 	return false
 }
 
-func (r *raft) inconsistentRaftConfig(m pb.Message) bool {
+func (r *raft) inconsistentRaftConfig(m pb.MY_Message) bool {
 	return !r.preVote && isPreVoteMessage(m.Type)
 }
 
-func (r *raft) Handle(m pb.Message) error {
+func (r *raft) Handle(m pb.MY_Message) error {
 	if r.inconsistentRaftConfig(m) {
 		panic("received preVote message when preVote is not enabled")
 	}
@@ -1621,7 +1832,7 @@ func (r *raft) hasConfigChangeToApply() bool {
 	return r.log.committed > r.getApplied()
 }
 
-func (r *raft) canGrantVote(m pb.Message) bool {
+func (r *raft) canGrantVote(m pb.MY_Message) bool {
 	return r.vote == NoNode || r.vote == m.From || m.Term > r.term
 }
 
@@ -1629,7 +1840,7 @@ func (r *raft) canGrantVote(m pb.Message) bool {
 // handlers for nodes in any state
 //
 
-func (r *raft) handleNodeElection(m pb.Message) error {
+func (r *raft) handleNodeElection(m pb.MY_Message) error {
 	if !r.isLeader() {
 		// there can be multiple pending membership change entries committed but not
 		// applied on this node. say with a shard of X, Y and Z, there are two
@@ -1667,9 +1878,11 @@ func (r *raft) handleNodeElection(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleNodeRequestPreVote(m pb.Message) error {
-	resp := pb.Message{
-		To:   m.From,
+func (r *raft) handleNodeRequestPreVote(m pb.MY_Message) error {
+	var to_list []uint64
+	to_list = append(to_list, m.From)
+	resp := pb.MY_Message{
+		To:   to_list,
 		Type: pb.RequestPreVoteResp,
 	}
 	isUpToDate, err := r.log.upToDate(m.LogIndex, m.LogTerm)
@@ -1694,9 +1907,11 @@ func (r *raft) handleNodeRequestPreVote(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleNodeRequestVote(m pb.Message) error {
-	resp := pb.Message{
-		To:   m.From,
+func (r *raft) handleNodeRequestVote(m pb.MY_Message) error {
+	var to_list []uint64
+	to_list = append(to_list, m.From)
+	resp := pb.MY_Message{
+		To:   to_list,
 		Type: pb.RequestVoteResp,
 	}
 	// 3rd paragraph section 5.2 of the raft paper
@@ -1721,7 +1936,7 @@ func (r *raft) handleNodeRequestVote(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleNodeConfigChange(m pb.Message) error {
+func (r *raft) handleNodeConfigChange(m pb.MY_Message) error {
 	if m.Reject {
 		r.clearPendingConfigChange()
 	} else {
@@ -1745,9 +1960,9 @@ func (r *raft) handleNodeConfigChange(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleLogQuery(m pb.Message) error {
+func (r *raft) handleLogQuery(m pb.MY_Message) error {
 	if r.logQueryResult == nil {
-		entries, err := r.log.getCommittedEntries(m.From, m.To, m.Hint)
+		entries, err := r.log.getCommittedEntries(m.From, m.To[0], m.Hint)
 		r.logQueryResult = &pb.LogQueryResult{
 			FirstIndex: r.log.firstIndex(),
 			LastIndex:  r.log.committed + 1,
@@ -1760,7 +1975,7 @@ func (r *raft) handleLogQuery(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleLocalTick(m pb.Message) error {
+func (r *raft) handleLocalTick(m pb.MY_Message) error {
 	if m.Reject {
 		r.quiescedTick()
 		return nil
@@ -1768,7 +1983,7 @@ func (r *raft) handleLocalTick(m pb.Message) error {
 	return r.tick()
 }
 
-func (r *raft) handleRestoreRemote(m pb.Message) error {
+func (r *raft) handleRestoreRemote(m pb.MY_Message) error {
 	r.restoreRemotes(m.Snapshot)
 	return nil
 }
@@ -1777,13 +1992,13 @@ func (r *raft) handleRestoreRemote(m pb.Message) error {
 // message handler functions used by leader
 //
 
-func (r *raft) handleLeaderHeartbeat(m pb.Message) error {
+func (r *raft) handleLeaderHeartbeat(m pb.MY_Message) error {
 	r.broadcastHeartbeatMessage()
 	return nil
 }
 
 // p69 of the raft thesis
-func (r *raft) handleLeaderCheckQuorum(m pb.Message) error {
+func (r *raft) handleLeaderCheckQuorum(m pb.MY_Message) error {
 	r.mustBeLeader()
 	if !r.leaderHasQuorum() {
 		plog.Warningf("%s has lost quorum", r.describe())
@@ -1792,7 +2007,7 @@ func (r *raft) handleLeaderCheckQuorum(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleLeaderPropose(m pb.Message) error {
+func (r *raft) handleLeaderPropose(m pb.MY_Message) error {
 	r.mustBeLeader()
 	if r.leaderTransfering() {
 		plog.Warningf("%s dropped proposal, leader transferring", r.describe())
@@ -1841,7 +2056,7 @@ func (r *raft) addReadyToRead(index uint64, ctx pb.SystemCtx) {
 }
 
 // section 6.4 of the raft thesis
-func (r *raft) handleLeaderReadIndex(m pb.Message) error {
+func (r *raft) handleLeaderReadIndex(m pb.MY_Message) error {
 	r.mustBeLeader()
 	ctx := pb.SystemCtx{
 		High: m.HintHigh,
@@ -1864,8 +2079,10 @@ func (r *raft) handleLeaderReadIndex(m pb.Message) error {
 		r.addReadyToRead(r.log.committed, ctx)
 		_, ook := r.nonVotings[m.From]
 		if m.From != r.replicaID && ook {
-			r.send(pb.Message{
-				To:       m.From,
+			var to_list []uint64
+			to_list = append(to_list, m.From)
+			r.send(pb.MY_Message{
+				To:       to_list,
 				Type:     pb.ReadIndexResp,
 				LogIndex: r.log.committed,
 				Hint:     m.Hint,
@@ -1877,7 +2094,7 @@ func (r *raft) handleLeaderReadIndex(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleLeaderReplicateResp(m pb.Message, rp *remote) error {
+func (r *raft) handleLeaderReplicateResp(m pb.MY_Message, rp *remote) error {
 	r.mustBeLeader()
 	rp.setActive()
 	if !m.Reject {
@@ -1913,7 +2130,7 @@ func (r *raft) handleLeaderReplicateResp(m pb.Message, rp *remote) error {
 	return nil
 }
 
-func (r *raft) handleLeaderHeartbeatResp(m pb.Message, rp *remote) error {
+func (r *raft) handleLeaderHeartbeatResp(m pb.MY_Message, rp *remote) error {
 	r.mustBeLeader()
 	rp.setActive()
 	rp.waitToRetry()
@@ -1928,7 +2145,7 @@ func (r *raft) handleLeaderHeartbeatResp(m pb.Message, rp *remote) error {
 	return nil
 }
 
-func (r *raft) handleLeaderTransfer(m pb.Message) error {
+func (r *raft) handleLeaderTransfer(m pb.MY_Message) error {
 	r.mustBeLeader()
 	target := m.Hint
 	plog.Debugf("%s called handleLeaderTransfer, target %d", r.describe(), target)
@@ -1958,7 +2175,7 @@ func (r *raft) handleLeaderTransfer(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleReadIndexLeaderConfirmation(m pb.Message) {
+func (r *raft) handleReadIndexLeaderConfirmation(m pb.MY_Message) {
 	ctx := pb.SystemCtx{
 		Low:  m.Hint,
 		High: m.HintHigh,
@@ -1968,8 +2185,10 @@ func (r *raft) handleReadIndexLeaderConfirmation(m pb.Message) {
 		if s.from == NoNode || s.from == r.replicaID {
 			r.addReadyToRead(s.index, s.ctx)
 		} else {
-			r.send(pb.Message{
-				To:       s.from,
+			var to_list []uint64
+			to_list = append(to_list, s.from)
+			r.send(pb.MY_Message{
+				To:       to_list,
 				Type:     pb.ReadIndexResp,
 				LogIndex: s.index,
 				Hint:     m.Hint,
@@ -1979,7 +2198,7 @@ func (r *raft) handleReadIndexLeaderConfirmation(m pb.Message) {
 	}
 }
 
-func (r *raft) handleLeaderSnapshotStatus(m pb.Message, rp *remote) error {
+func (r *raft) handleLeaderSnapshotStatus(m pb.MY_Message, rp *remote) error {
 	if rp.state != remoteSnapshot {
 		return nil
 	}
@@ -2000,14 +2219,14 @@ func (r *raft) handleLeaderSnapshotStatus(m pb.Message, rp *remote) error {
 	return nil
 }
 
-func (r *raft) handleLeaderUnreachable(m pb.Message, rp *remote) error {
+func (r *raft) handleLeaderUnreachable(m pb.MY_Message, rp *remote) error {
 	plog.Debugf("%s received Unreachable, %s entered retry state",
 		r.describe(), ReplicaID(m.From))
 	r.enterRetryState(rp)
 	return nil
 }
 
-func (r *raft) handleLeaderRateLimit(m pb.Message) error {
+func (r *raft) handleLeaderRateLimit(m pb.MY_Message) error {
 	if r.rl.Enabled() {
 		r.rl.SetFollowerState(m.From, m.Hint)
 	} else {
@@ -2028,7 +2247,7 @@ func (r *raft) checkPendingSnapshotAck() error {
 			for from, rp := range m {
 				if rp.state == remoteSnapshot {
 					if rp.delayed.tick() {
-						if err := r.Handle(pb.Message{
+						if err := r.Handle(pb.MY_Message{
 							Type:   pb.SnapshotStatus,
 							From:   from,
 							Reject: rp.delayed.rejected,
@@ -2062,27 +2281,27 @@ func (r *raft) checkPendingSnapshotAck() error {
 // message handlers used by nonVoting, re-route them to follower handlers
 //
 
-func (r *raft) handleNonVotingReplicate(m pb.Message) error {
+func (r *raft) handleNonVotingReplicate(m pb.MY_Message) error {
 	return r.handleFollowerReplicate(m)
 }
 
-func (r *raft) handleNonVotingHeartbeat(m pb.Message) error {
+func (r *raft) handleNonVotingHeartbeat(m pb.MY_Message) error {
 	return r.handleFollowerHeartbeat(m)
 }
 
-func (r *raft) handleNonVotingSnapshot(m pb.Message) error {
+func (r *raft) handleNonVotingSnapshot(m pb.MY_Message) error {
 	return r.handleFollowerInstallSnapshot(m)
 }
 
-func (r *raft) handleNonVotingPropose(m pb.Message) error {
+func (r *raft) handleNonVotingPropose(m pb.MY_Message) error {
 	return r.handleFollowerPropose(m)
 }
 
-func (r *raft) handleNonVotingReadIndex(m pb.Message) error {
+func (r *raft) handleNonVotingReadIndex(m pb.MY_Message) error {
 	return r.handleFollowerReadIndex(m)
 }
 
-func (r *raft) handleNonVotingReadIndexResp(m pb.Message) error {
+func (r *raft) handleNonVotingReadIndexResp(m pb.MY_Message) error {
 	return r.handleFollowerReadIndexResp(m)
 }
 
@@ -2090,15 +2309,15 @@ func (r *raft) handleNonVotingReadIndexResp(m pb.Message) error {
 // message handlers used by witness, re-route them to follower handlers
 //
 
-func (r *raft) handleWitnessReplicate(m pb.Message) error {
+func (r *raft) handleWitnessReplicate(m pb.MY_Message) error {
 	return r.handleFollowerReplicate(m)
 }
 
-func (r *raft) handleWitnessHeartbeat(m pb.Message) error {
+func (r *raft) handleWitnessHeartbeat(m pb.MY_Message) error {
 	return r.handleFollowerHeartbeat(m)
 }
 
-func (r *raft) handleWitnessSnapshot(m pb.Message) error {
+func (r *raft) handleWitnessSnapshot(m pb.MY_Message) error {
 	return r.handleFollowerInstallSnapshot(m)
 }
 
@@ -2106,13 +2325,15 @@ func (r *raft) handleWitnessSnapshot(m pb.Message) error {
 // message handlers used by follower
 //
 
-func (r *raft) handleFollowerPropose(m pb.Message) error {
+func (r *raft) handleFollowerPropose(m pb.MY_Message) error {
 	if r.leaderID == NoLeader {
 		plog.Warningf("%s dropped proposal, no leader", r.describe())
 		r.reportDroppedProposal(m)
 		return nil
 	}
-	m.To = r.leaderID
+	var to_list []uint64
+	to_list = append(to_list, r.leaderID)
+	m.To = to_list
 	// the message might be queued by the transport layer, this violates the
 	// requirement of the entryQueue.get() func. copy the m.Entries to its
 	// own space.
@@ -2125,40 +2346,46 @@ func (r *raft) leaderIsAvailable() {
 	r.electionTick = 0
 }
 
-func (r *raft) handleFollowerReplicate(m pb.Message) error {
+func (r *raft) handleFollowerReplicate(m pb.MY_Message) error {
 	r.leaderIsAvailable()
 	r.setLeaderID(m.From)
 	return r.handleReplicateMessage(m)
 }
 
-func (r *raft) handleFollowerHeartbeat(m pb.Message) error {
+func (r *raft) handleFollowerHeartbeat(m pb.MY_Message) error {
 	r.leaderIsAvailable()
 	r.setLeaderID(m.From)
 	return r.handleHeartbeatMessage(m)
 }
 
-func (r *raft) handleFollowerReadIndex(m pb.Message) error {
+func (r *raft) handleFollowerReadIndex(m pb.MY_Message) error {
 	if r.leaderID == NoLeader {
 		plog.Warningf("%s dropped ReadIndex, no leader", r.describe())
 		r.reportDroppedReadIndex(m)
 		return nil
 	}
-	m.To = r.leaderID
+	var to_list []uint64
+	to_list = append(to_list, r.leaderID)
+	//m.To = r.leaderID
+	m.To = to_list
 	r.send(m)
 	return nil
 }
 
-func (r *raft) handleFollowerLeaderTransfer(m pb.Message) error {
+func (r *raft) handleFollowerLeaderTransfer(m pb.MY_Message) error {
 	if r.leaderID == NoLeader {
 		plog.Warningf("%s dropped LeaderTransfer, no leader", r.describe())
 		return nil
 	}
-	m.To = r.leaderID
+	var to_list []uint64
+	to_list = append(to_list, r.leaderID)
+	//m.To = r.leaderID
+	m.To = to_list
 	r.send(m)
 	return nil
 }
 
-func (r *raft) handleFollowerReadIndexResp(m pb.Message) error {
+func (r *raft) handleFollowerReadIndexResp(m pb.MY_Message) error {
 	ctx := pb.SystemCtx{
 		Low:  m.Hint,
 		High: m.HintHigh,
@@ -2169,13 +2396,13 @@ func (r *raft) handleFollowerReadIndexResp(m pb.Message) error {
 	return nil
 }
 
-func (r *raft) handleFollowerInstallSnapshot(m pb.Message) error {
+func (r *raft) handleFollowerInstallSnapshot(m pb.MY_Message) error {
 	r.leaderIsAvailable()
 	r.setLeaderID(m.From)
 	return r.handleInstallSnapshotMessage(m)
 }
 
-func (r *raft) handleFollowerTimeoutNow(m pb.Message) error {
+func (r *raft) handleFollowerTimeoutNow(m pb.MY_Message) error {
 	// the last paragraph, p29 of the raft thesis mentions that this is nothing
 	// different from the clock moving forward quickly
 	plog.Debugf("%s TimeoutNow received", r.describe())
@@ -2200,13 +2427,13 @@ func (r *raft) doubleCheckTermMatched(msgTerm uint64) {
 	}
 }
 
-func (r *raft) handleCandidatePropose(m pb.Message) error {
+func (r *raft) handleCandidatePropose(m pb.MY_Message) error {
 	plog.Warningf("%s dropped proposal, no leader", r.describe())
 	r.reportDroppedProposal(m)
 	return nil
 }
 
-func (r *raft) handleCandidateReadIndex(m pb.Message) error {
+func (r *raft) handleCandidateReadIndex(m pb.MY_Message) error {
 	plog.Warningf("%s dropped read index, no leader", r.describe())
 	r.reportDroppedReadIndex(m)
 	ctx := pb.SystemCtx{
@@ -2223,22 +2450,22 @@ func (r *raft) handleCandidateReadIndex(m pb.Message) error {
 // handleCandidateHeartbeat
 // is called, it implies that m.Term == r.term and there is a leader
 // for that term. see 4th paragraph section 5.2 of the raft paper
-func (r *raft) handleCandidateReplicate(m pb.Message) error {
+func (r *raft) handleCandidateReplicate(m pb.MY_Message) error {
 	r.becomeFollower(r.term, m.From)
 	return r.handleReplicateMessage(m)
 }
 
-func (r *raft) handleCandidateInstallSnapshot(m pb.Message) error {
+func (r *raft) handleCandidateInstallSnapshot(m pb.MY_Message) error {
 	r.becomeFollower(r.term, m.From)
 	return r.handleInstallSnapshotMessage(m)
 }
 
-func (r *raft) handleCandidateHeartbeat(m pb.Message) error {
+func (r *raft) handleCandidateHeartbeat(m pb.MY_Message) error {
 	r.becomeFollower(r.term, m.From)
 	return r.handleHeartbeatMessage(m)
 }
 
-func (r *raft) handleCandidateRequestVoteResp(m pb.Message) error {
+func (r *raft) handleCandidateRequestVoteResp(m pb.MY_Message) error {
 	if _, ok := r.nonVotings[m.From]; ok {
 		plog.Warningf("dropped RequestVoteResp from nonVoting")
 		return nil
@@ -2264,7 +2491,7 @@ func (r *raft) handleCandidateRequestVoteResp(m pb.Message) error {
 // handler functions for preVote candidate
 //
 
-func (r *raft) handlePreVoteCandidateRequestPreVoteResp(m pb.Message) error {
+func (r *raft) handlePreVoteCandidateRequestPreVoteResp(m pb.MY_Message) error {
 	if _, ok := r.nonVotings[m.From]; ok {
 		plog.Warningf("dropped RequestPreVoteResp from nonVoting")
 		return nil
@@ -2287,7 +2514,7 @@ func (r *raft) reportDroppedConfigChange(e pb.Entry) {
 	r.droppedEntries = append(r.droppedEntries, e)
 }
 
-func (r *raft) reportDroppedProposal(m pb.Message) {
+func (r *raft) reportDroppedProposal(m pb.MY_Message) {
 	r.droppedEntries = append(r.droppedEntries, newEntrySlice(m.Entries)...)
 	if r.events != nil {
 		info := server.ProposalInfo{
@@ -2299,7 +2526,7 @@ func (r *raft) reportDroppedProposal(m pb.Message) {
 	}
 }
 
-func (r *raft) reportDroppedReadIndex(m pb.Message) {
+func (r *raft) reportDroppedReadIndex(m pb.MY_Message) {
 	sysctx := pb.SystemCtx{
 		Low:  m.Hint,
 		High: m.HintHigh,
@@ -2314,8 +2541,8 @@ func (r *raft) reportDroppedReadIndex(m pb.Message) {
 	}
 }
 
-func lw(r *raft, f func(m pb.Message, rp *remote) error) handlerFunc {
-	w := func(nm pb.Message) error {
+func lw(r *raft, f func(m pb.MY_Message, rp *remote) error) handlerFunc {
+	w := func(nm pb.MY_Message) error {
 		if npr, ok := r.remotes[nm.From]; ok {
 			return f(nm, npr)
 		} else if nob, ok := r.nonVotings[nm.From]; ok {
@@ -2330,7 +2557,7 @@ func lw(r *raft, f func(m pb.Message, rp *remote) error) handlerFunc {
 	return w
 }
 
-func defaultHandle(r *raft, m pb.Message) error {
+func defaultHandle(r *raft, m pb.MY_Message) error {
 	if f := r.handlers[r.state][m.Type]; f != nil {
 		return f(m)
 	}
@@ -2367,7 +2594,7 @@ func (r *raft) initializeHandlerMap() {
 	r.handlers[preVoteCandidate][pb.SnapshotReceived] = r.handleRestoreRemote
 	r.handlers[preVoteCandidate][pb.LogQuery] = r.handleLogQuery
 	// follower
-	r.handlers[follower][pb.Propose] = r.handleFollowerPropose
+	r.handlers[follower][pb.Propose] = r.handleFollowerPropose //确保跟随者在有领导者的情况下，将提案消息转发给领导者进行处理。如果没有领导者，则丢弃提案并记录警告日志。
 	r.handlers[follower][pb.Replicate] = r.handleFollowerReplicate
 	r.handlers[follower][pb.Heartbeat] = r.handleFollowerHeartbeat
 	r.handlers[follower][pb.ReadIndex] = r.handleFollowerReadIndex

@@ -28,7 +28,7 @@ import (
 	"reflect"
 	"testing"
 
-	pb "github.com/foreeest/dragonboat/raftpb"
+	pb "github.com/lni/dragonboat/v4/raftpb"
 )
 
 func TestUnstableMaybeFirstIndex(t *testing.T) {
