@@ -45,7 +45,7 @@ var (
 
 const (
 	// UDPTransportName is the name of the tcp transport module.
-	UDPTransportName         = "go-udp-transport"
+	UDPTransportName         = "go-UDP-transport"
 	requestHeaderSize        = 18
 	raftType          uint16 = 100
 	snapshotType      uint16 = 200
@@ -395,7 +395,7 @@ func (t *UDP) Start() error {
 	address := t.nhConfig.GetListenAddress()
 	addr, _ := t.get_udp_Addr(address) // get函数：从str到UDPConn
 	conn, err := net.ListenUDP("udp", addr)
-	plog.Infof("just a test")
+	// plog.Infof("just a test")
 	if err != nil {
 		fmt.Println("listen UDP error", err)
 		os.Exit(1) // 直接退出
