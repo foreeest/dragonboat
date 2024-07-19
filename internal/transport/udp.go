@@ -370,7 +370,7 @@ func (t *UDP) serveConn(conn *net.UDPConn, addr *net.UDPAddr) error {
 		if err != nil {
 			return err
 		}
-		plog.Infof("1 msg recieved")
+		// plog.Infof("1 msg recieved")
 		if rheader.method == raftType {
 			batch := pb.MessageBatch{}
 			if err := batch.Unmarshal(buf); err != nil {
@@ -395,6 +395,7 @@ func (t *UDP) Start() error {
 	address := t.nhConfig.GetListenAddress()
 	addr, _ := t.get_udp_Addr(address) // get函数：从str到UDPConn
 	conn, err := net.ListenUDP("udp", addr)
+	plog.Infof("just a test")
 	if err != nil {
 		fmt.Println("listen UDP error", err)
 		os.Exit(1) // 直接退出
