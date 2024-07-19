@@ -45,7 +45,7 @@ var (
 
 const (
 	// UDPTransportName is the name of the tcp transport module.
-	UDPTransportName         = "go-UDP-transport"
+	UDPTransportName         = "go-udp-transport"
 	requestHeaderSize        = 18
 	raftType          uint16 = 100
 	snapshotType      uint16 = 200
