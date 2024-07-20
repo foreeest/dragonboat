@@ -129,10 +129,8 @@ func TestLeaderBcastBeat(t *testing.T) {
 
 	msgs := r.readMessages()
 	sort.Sort(messageSlice(msgs))
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	var to_list_3 []uint64
-	to_list_3 = append(to_list_3, 3)
+	to_list_2 := []uint64{2}
+	to_list_3 := []uint64{3}
 	wmsgs := []pb.MY_Message{
 		{From: 1, To: to_list_2, Term: 1, Type: pb.Heartbeat},
 		{From: 1, To: to_list_3, Term: 1, Type: pb.Heartbeat},
@@ -185,9 +183,13 @@ func testNonleaderStartElection(t *testing.T, state State) {
 	}
 	msgs := r.readMessages()
 	sort.Sort(messageSlice(msgs))
-	wmsgs := []pb.Message{
-		{From: 1, To: 2, Term: 2, Type: pb.RequestVote},
-		{From: 1, To: 3, Term: 2, Type: pb.RequestVote},
+	to_list_1 := []uint64{2}
+
+	to_list_2 := []uint64{3}
+
+	wmsgs := []pb.MY_Message{
+		{From: 1, To: to_list_1, Term: 2, Type: pb.RequestVote},
+		{From: 1, To: to_list_2, Term: 2, Type: pb.RequestVote},
 	}
 	if !reflect.DeepEqual(msgs, wmsgs) {
 		t.Errorf("msgs = %v, want %v", msgs, wmsgs)
@@ -227,10 +229,10 @@ func TestLeaderElectionInOneRoundRPC(t *testing.T) {
 	}
 	for i, tt := range tests {
 		r := newTestRaft(1, idsBySize(tt.size), 10, 1, NewTestLogDB())
-
-		ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Election}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Election}), t)
 		for id, vote := range tt.votes {
-			ne(r.Handle(pb.Message{From: id, To: 1, Type: pb.RequestVoteResp, Reject: !vote}), t)
+			ne(r.Handle(pb.MY_Message{From: id, To: to_list_1, Type: pb.RequestVoteResp, Reject: !vote}), t)
 		}
 
 		if r.state != tt.state {
@@ -261,12 +263,14 @@ func TestFollowerVote(t *testing.T) {
 	for i, tt := range tests {
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, NewTestLogDB())
 		r.loadState(pb.State{Term: 1, Vote: tt.vote})
-
-		ne(r.Handle(pb.Message{From: tt.nvote, To: 1, Term: 1, Type: pb.RequestVote}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: tt.nvote, To: to_list_1, Term: 1, Type: pb.RequestVote}), t)
 
 		msgs := r.readMessages()
-		wmsgs := []pb.Message{
-			{From: 1, To: tt.nvote, Term: 1, Type: pb.RequestVoteResp, Reject: tt.wreject},
+
+		to_list_nvote := []uint64{tt.nvote}
+		wmsgs := []pb.MY_Message{
+			{From: 1, To: to_list_nvote, Term: 1, Type: pb.RequestVoteResp, Reject: tt.wreject},
 		}
 		if !reflect.DeepEqual(msgs, wmsgs) {
 			t.Errorf("#%d: msgs = %v, want %v", i, msgs, wmsgs)
@@ -280,13 +284,14 @@ func TestFollowerVote(t *testing.T) {
 // it recognizes the leader as legitimate and returns to follower state.
 // Reference: section 5.2
 func TestCandidateFallback(t *testing.T) {
-	tests := []pb.Message{
-		{From: 2, To: 1, Term: 1, Type: pb.Replicate},
-		{From: 2, To: 1, Term: 2, Type: pb.Replicate},
+	to_list_1 := []uint64{1}
+	tests := []pb.MY_Message{
+		{From: 2, To: to_list_1, Term: 1, Type: pb.Replicate},
+		{From: 2, To: to_list_1, Term: 2, Type: pb.Replicate},
 	}
 	for i, tt := range tests {
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, NewTestLogDB())
-		ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Election}), t)
+		ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Election}), t)
 		if r.state != candidate {
 			t.Fatalf("unexpected state = %s, want %s", r.state, candidate)
 		}
@@ -419,7 +424,8 @@ func TestLeaderCommitEntry(t *testing.T) {
 	ne(r.becomeLeader(), t)
 	commitNoopEntry(r, s)
 	li := r.log.lastIndex()
-	ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
+	to_list_1 := []uint64{1}
+	ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
 
 	for _, m := range r.readMessages() {
 		ne(r.Handle(acceptAndReply(m)), t)
@@ -477,7 +483,8 @@ func TestLeaderAcknowledgeCommit(t *testing.T) {
 		ne(r.becomeLeader(), t)
 		commitNoopEntry(r, s)
 		li := r.log.lastIndex()
-		ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
 
 		for _, m := range r.readMessages() {
 			if tt.acceptors[m.To] {
@@ -512,7 +519,8 @@ func TestLeaderCommitPrecedingEntries(t *testing.T) {
 		r.loadState(pb.State{Term: 2})
 		r.becomeCandidate()
 		ne(r.becomeLeader(), t)
-		ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{Cmd: []byte("some data")}}}), t)
 
 		for _, m := range r.readMessages() {
 			ne(r.Handle(acceptAndReply(m)), t)
@@ -569,8 +577,8 @@ func TestFollowerCommitEntry(t *testing.T) {
 	for i, tt := range tests {
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, NewTestLogDB())
 		r.becomeFollower(1, 2)
-
-		ne(r.Handle(pb.Message{From: 2, To: 1, Type: pb.Replicate, Term: 1, Entries: tt.ents, Commit: tt.commit}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 2, To: to_list_1, Type: pb.Replicate, Term: 1, Entries: tt.ents, Commit: tt.commit}), t)
 
 		if g := r.log.committed; g != tt.commit {
 			t.Errorf("#%d: committed = %d, want %d", i, g, tt.commit)
@@ -619,12 +627,13 @@ func TestFollowerCheckReplicate(t *testing.T) {
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, storage)
 		r.loadState(pb.State{Commit: 1})
 		r.becomeFollower(2, 2)
-
-		ne(r.Handle(pb.Message{From: 2, To: 1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.Message{From: 2, To: to_list_1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index}), t)
 
 		msgs := r.readMessages()
-		wmsgs := []pb.Message{
-			{From: 1, To: 2, Type: pb.ReplicateResp, Term: 2, LogIndex: tt.windex, Reject: tt.wreject, Hint: tt.wrejectHint},
+		to_list_2 := []uint64{2}
+		wmsgs := []pb.MY_Message{
+			{From: 1, To: to_list_2, Type: pb.ReplicateResp, Term: 2, LogIndex: tt.windex, Reject: tt.wreject, Hint: tt.wrejectHint},
 		}
 		if !reflect.DeepEqual(msgs, wmsgs) {
 			t.Errorf("#%d: msgs = %+v, want %+v", i, msgs, wmsgs)
@@ -676,8 +685,8 @@ func TestFollowerAppendEntries(t *testing.T) {
 		}
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, storage)
 		r.becomeFollower(2, 2)
-
-		ne(r.Handle(pb.Message{From: 2, To: 1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index, Entries: tt.ents}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 2, To: to_list_1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index, Entries: tt.ents}), t)
 
 		if g := getAllEntries(r.log); !reflect.DeepEqual(g, tt.wents) {
 			t.Errorf("#%d: ents = %+v, want %+v", i, g, tt.wents)
@@ -757,12 +766,13 @@ func TestLeaderSyncFollowerLog(t *testing.T) {
 		// The second may have more up-to-date log than the first one, so the
 		// first node needs the vote from the third node to become the leader.
 		n := newNetwork(lead, follower, nopStepper)
-		n.send(pb.Message{From: 1, To: 1, Type: pb.Election})
+		to_list_1 := []uint64{1}
+		n.send(pb.Message{From: 1, To: to_list_1, Type: pb.Election})
 		// The election occurs in the term after the one we loaded with
 		// lead.loadState above.
-		n.send(pb.Message{From: 3, To: 1, Type: pb.RequestVoteResp, Term: term + 1})
+		n.send(pb.Message{From: 3, To: to_list_1, Type: pb.RequestVoteResp, Term: term + 1})
 
-		n.send(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: []pb.Entry{{}}})
+		n.send(pb.Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{}}})
 
 		if g := diffu(ltoa(lead.log), ltoa(follower.log)); g != "" {
 			t.Errorf("#%d: log diff:\n%s", i, g)
@@ -783,8 +793,9 @@ func TestVoteRequest(t *testing.T) {
 	}
 	for j, tt := range tests {
 		r := newTestRaft(1, []uint64{1, 2, 3}, 10, 1, NewTestLogDB())
-		ne(r.Handle(pb.Message{
-			From: 2, To: 1, Type: pb.Replicate, Term: tt.wterm - 1, LogTerm: 0, LogIndex: 0, Entries: tt.ents,
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{
+			From: 2, To: to_list_1, Type: pb.Replicate, Term: tt.wterm - 1, LogTerm: 0, LogIndex: 0, Entries: tt.ents,
 		}), t)
 		r.readMessages()
 
@@ -848,8 +859,8 @@ func TestVoter(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 		r := newTestRaft(1, []uint64{1, 2}, 10, 1, storage)
-
-		ne(r.Handle(pb.Message{From: 2, To: 1, Type: pb.RequestVote, Term: 3, LogTerm: tt.logterm, LogIndex: tt.index}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 2, To: to_list_1, Type: pb.RequestVote, Term: 3, LogTerm: tt.logterm, LogIndex: tt.index}), t)
 
 		msgs := r.readMessages()
 		if len(msgs) != 1 {
@@ -892,9 +903,10 @@ func TestLeaderOnlyCommitsLogFromCurrentTerm(t *testing.T) {
 		ne(r.becomeLeader(), t)
 		r.readMessages()
 		// propose a entry to current term
-		ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: []pb.Entry{{}}}), t)
+		to_list_1 := []uint64{1}
+		ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{}}}), t)
 
-		ne(r.Handle(pb.Message{From: 2, To: 1, Type: pb.ReplicateResp, Term: r.term, LogIndex: tt.index}), t)
+		ne(r.Handle(pb.MY_Message{From: 2, To: to_list_1, Type: pb.ReplicateResp, Term: r.term, LogIndex: tt.index}), t)
 		if r.log.committed != tt.wcommit {
 			t.Errorf("#%d: commit = %d, want %d", i, r.log.committed, tt.wcommit)
 		}
@@ -910,7 +922,8 @@ func TestLeaderStartReplication(t *testing.T) {
 	li := r.log.lastIndex()
 
 	ents := []pb.Entry{{Cmd: []byte("some data")}}
-	ne(r.Handle(pb.Message{From: 1, To: 1, Type: pb.Propose, Entries: ents}), t)
+	to_list_1 := []uint64{1}
+	ne(r.Handle(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: ents}), t)
 	if g := r.log.lastIndex(); g != li+1 {
 		t.Errorf("lastIndex = %d, want %d", g, li+1)
 	}
@@ -918,9 +931,11 @@ func TestLeaderStartReplication(t *testing.T) {
 		t.Errorf("committed = %d, want %d", g, li)
 	}
 	wents := []pb.Entry{{Index: li + 1, Term: 1, Cmd: []byte("some data")}}
-	wmsgs := []pb.Message{
-		{From: 1, To: 2, Term: 1, Type: pb.Replicate, LogIndex: li, LogTerm: 1, Entries: wents, Commit: li},
-		{From: 1, To: 3, Term: 1, Type: pb.Replicate, LogIndex: li, LogTerm: 1, Entries: wents, Commit: li},
+	to_list_2 := []uint64{2}
+	to_list_3 := []uint64{3}
+	wmsgs := []pb.MY_Message{
+		{From: 1, To: to_list_2, Term: 1, Type: pb.Replicate, LogIndex: li, LogTerm: 1, Entries: wents, Commit: li},
+		{From: 1, To: to_list_3, Term: 1, Type: pb.Replicate, LogIndex: li, LogTerm: 1, Entries: wents, Commit: li},
 	}
 	msgs := r.readMessages()
 	sort.Sort(messageSlice(msgs))
@@ -933,7 +948,7 @@ func TestLeaderStartReplication(t *testing.T) {
 	}
 }
 
-type messageSlice []pb.Message
+type messageSlice []pb.MY_Message
 
 func (s messageSlice) Len() int           { return len(s) }
 func (s messageSlice) Less(i, j int) bool { return fmt.Sprint(s[i]) < fmt.Sprint(s[j]) }
@@ -970,13 +985,14 @@ func commitNoopEntry(r *raft, s ILogDB) {
 	})
 }
 
-func acceptAndReply(m pb.Message) pb.Message {
+func acceptAndReply(m pb.MY_Message) pb.MY_Message {
 	if m.Type != pb.Replicate {
 		panic("type should be Replicate")
 	}
-	return pb.Message{
+	to_list_m_From := []uint64{m.From}
+	return pb.MY_Message{
 		From:     m.To,
-		To:       m.From,
+		To:       to_list_m_From,
 		Term:     m.Term,
 		Type:     pb.ReplicateResp,
 		LogIndex: m.LogIndex + uint64(len(m.Entries)),

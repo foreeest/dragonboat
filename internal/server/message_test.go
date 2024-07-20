@@ -32,13 +32,13 @@ func TestMessageQueueCanBeCreated(t *testing.T) {
 func TestMessageCanBeAddedAndGet(t *testing.T) {
 	q := NewMessageQueue(8, false, 0, 0)
 	for i := 0; i < 8; i++ {
-		added, stopped := q.Add(pb.Message{})
+		added, stopped := q.Add(pb.MY_Message{})
 		if !added || stopped {
 			t.Errorf("failed to add")
 		}
 	}
-	add, stopped := q.Add(pb.Message{})
-	add2, stopped2 := q.Add(pb.Message{})
+	add, stopped := q.Add(pb.MY_Message{})
+	add2, stopped2 := q.Add(pb.MY_Message{})
 	if add || add2 {
 		t.Errorf("failed to drop message")
 	}
@@ -56,8 +56,8 @@ func TestMessageCanBeAddedAndGet(t *testing.T) {
 	if lr == q.leftInWrite {
 		t.Errorf("lr flag not updated")
 	}
-	add, stopped = q.Add(pb.Message{})
-	add2, stopped2 = q.Add(pb.Message{})
+	add, stopped = q.Add(pb.MY_Message{})
+	add2, stopped2 = q.Add(pb.MY_Message{})
 	if !add || !add2 {
 		t.Errorf("failed to add message")
 	}
