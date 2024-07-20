@@ -102,10 +102,15 @@ replace github.com/A/xxx => /home/user/projects/xxx
 ```
 即拉取后增加replace语句，然后进行本地开发与测试，而无需频繁地推送；完成开发后，**去掉replace语句**然后进行推送；保险起见是建议都用replace开发     
 
-- what happen when you run `go build`  
+- what happen when you run `go build`    
 找到go.mod，从同目录找一个main函数入口，生成可执行文件；可执行文件名为go.mod的module名，如有github.com等，省略掉    
 找到go.mod中需要的库，从`$GOPATH/pkg/mod`中找库找不到就去代理拉取，其中`$GOPATH`一般是`~/go`，可用`$ go env`查看，所以如果直接在这里面找到库进行编辑应该会直接生效，无需**replace**，但是**还没**研究过这样需要注意什么  
 
-- go mod tidy指令
+- go mod tidy指令   
 自动从代码中向go.mod增减依赖库，这里的**库的版本**有讲究，它会下载最新的符合依赖约束的版本；而`go get`指令相较之下可以指定版本  
 还会生成go.sum，go在运行代码或者test时会检查go.sum，即若手动修改版本后，如果没有`go mod tidy`或者`go get xxx`会报错   
+
+- 
+
+## More About Git ##
+- 如何理解HEAD
