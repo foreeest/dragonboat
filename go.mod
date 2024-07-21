@@ -2,7 +2,7 @@ module github.com/foreeest/dragonboat/v2
 
 go 1.22.2
 
-replace github.com/lni/dragonboat/v4 => github.com/foreeest/dragonboat/v2 v2.0.0
+replace github.com/lni/dragonboat/v4 => ../dragonboat
 
 require (
 	github.com/VictoriaMetrics/metrics v1.35.1
