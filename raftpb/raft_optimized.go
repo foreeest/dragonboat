@@ -705,48 +705,6 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 				}
 			}
 		case 2:
-			if wireType != 2 {// 这里代表的是length_delimit类型（长度前缀的类型），目前先听从chatgpt的意见
-				return fmt.Errorf("proto: wrong wireType = %d for field To", wireType)
-			}
-			var byteLen int// 读取内容的长度（参考change_bottom文档的说明）
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthRaft
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			//
-			m.To = nil // 清空之前的内容
-			for i := iNdEx; i < postIndex; i += 8 {
-				if i+8 > postIndex {
-					return io.ErrUnexpectedEOF
-				}
-				m.To = append(m.To, binary.LittleEndian.Uint64(dAtA[i:i+8]))
-			}
-			//m.To = append(m.To[:0], dAtA[iNdEx:postIndex]...)
-			//if m.To == nil {
-				//m.To = []uint64{}
-			//}// 这块可以参考Entry反序列化的方式来更改，但是entry数据结构更加复杂，所以代码逻辑更加复杂
-			iNdEx = postIndex
-		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
 			}
@@ -765,7 +723,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 4:
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ShardId", wireType)
 			}
@@ -784,7 +742,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 5:
+		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Term", wireType)
 			}
@@ -803,7 +761,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 6:
+		case 5:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LogTerm", wireType)
 			}
@@ -822,7 +780,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 7:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LogIndex", wireType)
 			}
@@ -841,7 +799,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 8:
+		case 7:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Commit", wireType)
 			}
@@ -860,7 +818,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 9:
+		case 8:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Reject", wireType)
 			}
@@ -880,7 +838,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.Reject = bool(v != 0)
-		case 10:
+		case 9:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Hint", wireType)
 			}
@@ -899,7 +857,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 11:
+		case 10:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Entries", wireType)
 			}
@@ -934,7 +892,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 12:
+		case 11:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Snapshot", wireType)
 			}
@@ -964,7 +922,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 13:
+		case 12:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HintHigh", wireType)
 			}
@@ -1005,6 +963,7 @@ func (m *MY_Message) Unmarshal(dAtA []byte) error {
 	return nil
 }
 
+
 func (m *MY_Message) entryCount(dAtA []byte) int {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1039,6 +998,7 @@ func (m *MY_Message) entryCount(dAtA []byte) int {
 	}
 	return count
 }
+
 //messagebatch这块查看messagebatch.go文件，不需要修改。
 func (m *MessageBatch) messageCount(dAtA []byte) int {
 	l := len(dAtA)
@@ -1229,38 +1189,11 @@ func (m *MessageBatch) Unmarshal(dAtA []byte) error {
 	return nil
 }
 
-// SizeUpperLimit returns the upper limit size of the message.
-//func (m *MY_Message) SizeUpperLimit() int {
-	//l := 0
-	//l += (16 * 12)
-	//l += m.Snapshot.Size()
-	//if len(m.Entries) > 0 {
-		//for _, e := range m.Entries {
-			//l += 16
-			//l += e.SizeUpperLimit()
-		//}
-	//}
-	//return l
-//}
-
-// SizeUpperLimit returns the upper limit size of the message batch.
-// func (m *MessageBatch) SizeUpperLimit() int {
-// 	l := 0
-// 	l += (16 * 3) + len(m.SourceAddress)
-// 	for _, msg := range m.Requests {
-// 		l += 16
-// 		l += msg.SizeUpperLimit()
-// 	}
-// 	return l
-// }
 //SizeUpperLimit returns the upper limit size of the message.
 func (m *MY_Message) SizeUpperLimit() int {
 	l := 0
 	// Calculate the upper limit for each field in MY_Message
 	l += 1 + sovRaft(uint64(m.Type)) // MessageType
-	for _, to := range m.To {        // To (slice of uint64)
-		l += 1 + sovRaft(to)
-	}
 	l += 1 + sovRaft(m.From)         // From
 	l += 1 + sovRaft(m.ShardID)      // ShardID
 	l += 1 + sovRaft(m.Term)         // Term
@@ -1278,21 +1211,7 @@ func (m *MY_Message) SizeUpperLimit() int {
 	l += 1 + sovRaft(m.HintHigh)     // HintHigh
 	return l
 }
-// func (m *MY_Message) SizeUpperLimit() int {
-// 	l := 0
-// 	l += (16 * 11)
-// 	l += m.Snapshot.Size()
-// 	for _, to := range m.To {        // To (slice of uint64)
-// 		l += 1 + sovRaft(to)
-// 	}
-// 	if len(m.Entries) > 0 {
-// 		for _, e := range m.Entries {
-// 			l += 16
-// 			l += e.SizeUpperLimit()
-// 		}
-// 	}
-// 	return l
-// }
+
 // SizeUpperLimit returns the upper limit size of the message batch.
 func (m *MessageBatch) SizeUpperLimit() int {
 	l := 0

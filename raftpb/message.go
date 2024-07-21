@@ -246,7 +246,6 @@ func (m *MY_Message) Size() (n int) {
 
 	// Type field
 	n += 1 + sovRaft(uint64(m.Type)) //1 是字段标识符的大小，sovRaft 计算 Type 值的 Varint 编码大小
-    //原来的代码 n += 1 + sovRaft(uint64(m.To))
 
 	// From field
 	n += 1 + sovRaft(uint64(m.From))
