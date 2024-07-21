@@ -979,7 +979,7 @@ func (m *MY_Message) entryCount(dAtA []byte) int {
 			}
 		}
 		fieldNum := int32(wire >> 3)
-		if fieldNum == 11 {
+		if fieldNum == 10 {
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				b := dAtA[iNdEx]
