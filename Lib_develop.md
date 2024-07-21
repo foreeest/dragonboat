@@ -110,7 +110,22 @@ replace github.com/A/xxx => /home/user/projects/xxx
 自动从代码中向go.mod增减依赖库，这里的**库的版本**有讲究，它会下载最新的符合依赖约束的版本；而`go get`指令相较之下可以指定版本  
 还会生成go.sum，go在运行代码或者test时会检查go.sum，即若手动修改版本后，如果没有`go mod tidy`或者`go get xxx`会报错   
 
-- 
+- go.mod是否影响别人go get?  
+**replace**只在本仓库生效
+详情可搜一篇csdn博客`Go mod 学习之 replace 篇`   
 
 ## More About Git ##
+
 - 如何理解HEAD
+当前你在什么分支，如果你不在任何branch就会显示如`* (HEAD detached at 8003649)`，此时无法提交  
+`remotes/origin/HEAD -> origin/master`如何理解？HEAD指向的是当前准备修改的地方，不论是在remote还是本地  
+
+- 删除(慎用)
+
+```shell
+$ git remote -v
+$ git remote remove origin # 整个删
+$ git branch -a
+$ git push origin --delete remoteBranchName # 删远程
+$ git branch -d localBranchName # 删本地
+```
