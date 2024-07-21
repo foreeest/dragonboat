@@ -161,56 +161,38 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
 
-	// To field (as Length-delimited)
-	//dAtA[i] = 0x10
-	//i++
-	// 这是原来的i = encodeVarintRaft(dAtA, i, uint64(m.To))
-	if len(m.To) > 0 {
-        dAtA[i] = 0x12 // Field number (2) << 3 | Wire type (2) 0x12 是字段标识符，表示字段编号为 2，类型为 Length-delimited
-        i++
-        // Calculate the length of the To field
-        toLength := 0
-        for _, to := range m.To {
-            toLength += sovRaft(uint64(to)) //sovRaft 函数用于计算一个 uint64 类型的整数在 Varint 编码下所需的字节数，详细可以参考raftpb/common下的注释
-        }//遍历 m.To 切片中的每个元素，计算每个 uint64 元素在 Varint 编码下所需的字节数，并累加到 toLength 中。
-        i = encodeVarintRaft(dAtA, i, uint64(toLength))//将 toLength 编码为 Varint 并写入字节数组 dAtA
-        for _, to := range m.To {
-            i = encodeVarintRaft(dAtA, i, uint64(to))
-        }//遍历 m.To 切片中的每个元素，将每个 uint64 元素编码为 Varint 并写入字节数组 dAtA。
-    }
-
     // From field
-	dAtA[i] = 0x18
+	dAtA[i] = 0x10
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.From))
 
 	// ShardID field
-	dAtA[i] = 0x20
+	dAtA[i] = 0x18
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
 
 	// Term field，要找term看这里的标识符
-	dAtA[i] = 0x28
+	dAtA[i] = 0x20
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
 
 	// LogTerm field
-	dAtA[i] = 0x30
+	dAtA[i] = 0x28
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
 
 	// LogIndex field，要找LogIndex看这里的标识符
-	dAtA[i] = 0x38
+	dAtA[i] = 0x30
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
 
 	// Commit field
-	dAtA[i] = 0x40
+	dAtA[i] = 0x38
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
 
 	// Reject field，ps如果有其他bool类型也可以参考这里修改
-	dAtA[i] = 0x48
+	dAtA[i] = 0x40
 	i++
 	if m.Reject {
 		dAtA[i] = 1
@@ -220,14 +202,14 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	i++
 
 	// Hint field
-	dAtA[i] = 0x50
+	dAtA[i] = 0x48
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
 
 	// Entries field
 	if len(m.Entries) > 0 {
 		for _, msg := range m.Entries {
-			dAtA[i] = 0x5a
+			dAtA[i] = 0x52
 			i++
 			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(dAtA[i:])
@@ -239,7 +221,7 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	}
 
 	// Snapshot field
-	dAtA[i] = 0x62
+	dAtA[i] = 0x5a
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
 	n2, err := m.Snapshot.MarshalTo(dAtA[i:])
@@ -249,7 +231,7 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	i += n2
 
 	// HintHigh field
-	dAtA[i] = 0x68
+	dAtA[i] = 0x60
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
 	return i, nil
@@ -265,14 +247,6 @@ func (m *MY_Message) Size() (n int) {
 	// Type field
 	n += 1 + sovRaft(uint64(m.Type)) //1 是字段标识符的大小，sovRaft 计算 Type 值的 Varint 编码大小
     //原来的代码 n += 1 + sovRaft(uint64(m.To))
-	// To field (as Length-delimited)
-	if len(m.To) > 0 {
-		toLength := 0
-		for _, to := range m.To {
-			toLength += sovRaft(uint64(to))
-		} //计算 To 字段的总长度 toLength，即所有 uint64 元素（也就是切实的to的元素的大小）的 Varint 编码总大小
-		n += 1 + sovRaft(uint64(toLength)) + toLength//sovRaft(uint64(toLength)) 计算 toLength 值的 Varint 编码大小
-	}//加上 1（字段标识符的大小）和 toLength，即实际数据的大小。
 
 	// From field
 	n += 1 + sovRaft(uint64(m.From))
