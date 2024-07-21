@@ -24,14 +24,14 @@ import (
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv/pebble"
-	"github.com/lni/dragonboat/v4/internal/tan"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/logdb"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv/pebble"
+	"github.com/foreeest/dragonboat/v2/internal/tan"
+	"github.com/foreeest/dragonboat/v2/logger"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 var (

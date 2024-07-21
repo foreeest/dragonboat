@@ -24,12 +24,12 @@ import (
 	"github.com/cockroachdb/pebble"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/fileutil"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv"
+	"github.com/foreeest/dragonboat/v2/internal/utils"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/logger"
 )
 
 var (

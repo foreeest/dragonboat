@@ -19,7 +19,7 @@ import (
 
 	"github.com/lni/goutils/leaktest"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
 )
 
 const (

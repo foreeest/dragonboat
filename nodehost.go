@@ -34,7 +34,7 @@ membership change requests to add or remove nodes from selected Raft shard.
 
 User applications can leverage the power of the Raft protocol by implementing
 the IStateMachine or IOnDiskStateMachine component, as defined in
-github.com/lni/dragonboat/v4/statemachine. Known as user state machines, each
+github.com/foreeest/dragonboat/v2/statemachine. Known as user state machines, each
 IStateMachine or IOnDiskStateMachine instance is in charge of updating, querying
 and snapshotting application data with minimum exposure to the Raft protocol
 itself.
@@ -53,7 +53,7 @@ its deadline, it faces the risk of having the same proposal committed and
 applied twice into the user state machine. Dragonboat prevents this by
 implementing the client session concept described in Diego Ongaro's PhD thesis.
 */
-package dragonboat // github.com/lni/dragonboat/v4
+package dragonboat // github.com/foreeest/dragonboat/v2
 
 import (
 	"context"
@@ -68,21 +68,21 @@ import (
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/invariants"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/v2/client"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/id"
+	"github.com/foreeest/dragonboat/v2/internal/invariants"
+	"github.com/foreeest/dragonboat/v2/internal/logdb"
+	"github.com/foreeest/dragonboat/v2/internal/registry"
+	"github.com/foreeest/dragonboat/v2/internal/rsm"
+	"github.com/foreeest/dragonboat/v2/internal/server"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
+	"github.com/foreeest/dragonboat/v2/internal/transport"
+	"github.com/foreeest/dragonboat/v2/internal/utils"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
+	sm "github.com/foreeest/dragonboat/v2/statemachine"
 )
 
 const (

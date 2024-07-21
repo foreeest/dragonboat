@@ -33,9 +33,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/tests/kvpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/v2/internal/fileutil"
+	"github.com/foreeest/dragonboat/v2/internal/tests/kvpb"
+	sm "github.com/foreeest/dragonboat/v2/statemachine"
 	"github.com/lni/goutils/random"
 )
 

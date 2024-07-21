@@ -15,8 +15,8 @@
 package raft
 
 import (
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
 	"math"
 	"reflect"
 	"sort"
@@ -24,8 +24,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lni/dragonboat/v4/internal/server"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/internal/server"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 //

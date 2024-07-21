@@ -20,9 +20,9 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/foreeest/dragonboat/v2/config"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
+	sm "github.com/foreeest/dragonboat/v2/statemachine"
 )
 
 var (

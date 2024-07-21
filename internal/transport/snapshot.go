@@ -38,11 +38,11 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/internal/rsm"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 var (

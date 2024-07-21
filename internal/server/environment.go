@@ -23,15 +23,15 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/random"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/fileutil"
+	"github.com/foreeest/dragonboat/v2/internal/id"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
+	"github.com/foreeest/dragonboat/v2/internal/utils"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/logger"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	"github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 var (

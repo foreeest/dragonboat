@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	sm "github.com/foreeest/dragonboat/v2/statemachine"
 )
 
 func TestRecCanBeEvicted(t *testing.T) {

@@ -26,8 +26,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"github.com/lni/dragonboat/v4/internal/server"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/internal/server"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 func getAllEntries(l *entryLog) []pb.Entry {

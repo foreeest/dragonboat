@@ -19,7 +19,7 @@ import (
 
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/internal/settings"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
 )
 
 func TestPeerCanBeAdded(t *testing.T) {

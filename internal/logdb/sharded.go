@@ -22,12 +22,12 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv"
+	"github.com/foreeest/dragonboat/v2/internal/server"
+	"github.com/foreeest/dragonboat/v2/internal/utils"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 // ShardedDB is a LogDB implementation using sharded ILogDB instances.

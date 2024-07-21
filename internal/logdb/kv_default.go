@@ -18,10 +18,10 @@
 package logdb
 
 import (
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv/pebble"
-	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv"
+	"github.com/foreeest/dragonboat/v2/internal/logdb/kv/pebble"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
 )
 
 const (

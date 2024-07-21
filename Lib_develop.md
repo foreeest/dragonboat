@@ -42,24 +42,36 @@ $ git push origin v2
 $ git push origin v2.0.0 
 ```
 
-需要优雅地将原来库import改成自己的，除了暴力字符串匹配，可以在**go.mod**加一句  
+如果~~妄想~~需要优雅地将原来库import改成自己的，除了暴力字符串匹配，可以在**go.mod**加一句  
 ```txt
-replace github.com/lni/dragonboat/v4 => github.com/foreeest/dragonboat/v2 v2.0.0
+replace github.com/foreeest/dragonboat/v2 => github.com/foreeest/dragonboat/v2 v2.0.0
 ```
 最后执行指令即可  
 ```shell
 $ go mod tidy
 ```
-但这会面临一个问题，即更新了v2分支后还是引用v2.0.0，解决方案见此文档后面more about go     
+但这会面临一个问题，即更新了v2分支后还是引用v2.0.0  
+不是不能解决，而是我**太菜**，所以我决定**暴力匹配**  
+```shell
+$ cd dragonboat
+$ find . -type f -exec perl -pi -e 's|github.com/lni/dragonboat/v4|github.com/foreeest/dragonboat/v2|g' {} +
+$ go mod init github.com/foreeest/dragonboat/v2
+$ go mod tidy
+```
+
+NOTE: 不是说**replace**不好，而是这个fork场景下replace难以理解、真伪难辨；其他场景下当然可以用；这还有个问题就是暴力字符串会不会**误伤**，譬如想把dragon改成elephant，结果意外得到elephantboat，但如上的串串说实话能误伤的只有go.mod了，但我重新init了       
 
 ## 库使用 ##
 
 1. 创建文件夹，并编写代码
+
 ```shell
 $ mkdir myproject
 $ cd myproject
 ```
+
 2. 获取第三方库
+
 **if** new  
 ```shell
 $ go mod init main
@@ -71,16 +83,16 @@ $ go mod tidy
 $ go get github.com/foreeest/dragonboat@v1.0.0
 ```
 
-3. 重新编译，然后可以运行可执行文件
+4. 重新编译，然后可以运行可执行文件
 
 ```shell
 $ go build
 ```
 
-4. 如果原来的库依赖原作者库，即是一个fork库，需要**replace**，且**replace**建议与此fork库的replace一致    
-其原因见 more about go部分  
+5. 如果原来的库依赖原作者库，即是一个fork库，可能需要**replace**，且**replace**建议与此fork库的replace一致    
+其原因more about go部分，我建议不要纠缠这个     
 ```shell
-# replace github.com/lni/dragonboat/v4 => github.com/foreeest/dragonboat v1.0.0
+# replace github.com/foreeest/dragonboat/v2 => github.com/foreeest/dragonboat v1.0.0
 $ go mod tidy
 ```
 
@@ -96,17 +108,16 @@ $ go mod tidy
 replace github.com/A/xxx => /home/user/projects/xxx
 ```
 即拉取后增加**replace**语句，然后进行本地开发与测试，而无需频繁地推送；完成开发后，可去掉也可不去replace语句然后进行推送；保险起见是建议都用replace开发     
-也可以采用  
+有说用如下也可以的，0.0.0则是占位符；实测至少有些情况不行，可以暂时忽略  
 ```txt
 replace github.com/A/xxx => github.com/B/xxx v0.0.0
 ```
-为何要v0.0.0因为**replace**规定一定要带版本或者是本地路径，而0.0.0则是占位符   
 
 - what happen when you run `go build`    
 找到go.mod，从同目录找一个main函数入口，生成可执行文件；可执行文件名为go.mod的module名，如有github.com等，省略掉    
 找到go.mod中需要的库，从`$GOPATH/pkg/mod`中找库找不到就去代理拉取，其中`$GOPATH`一般是`~/go`，可用`$ go env`查看，所以如果直接在这里面找到库进行编辑应该会直接生效，无需**replace**，但是**还没**研究过这样需要注意什么  
 
-- go mod tidy指令   
+- `go mod tidy`指令   
 自动从代码中向go.mod增减依赖库，这里的**库的版本**有讲究，它会下载最新的符合依赖约束的版本；而`go get`指令相较之下可以指定版本  
 还会生成go.sum，go在运行代码或者test时会检查go.sum，即若手动修改版本后，如果没有`go mod tidy`或者`go get xxx`会报错   
 
@@ -114,8 +125,7 @@ replace github.com/A/xxx => github.com/B/xxx v0.0.0
 **replace**只在本仓库生效，所以上传库不删replace应该也行，其他项目要require此库，会看go.mod但不会看其中的**replace**语句  
 用replace时可以在require中寻找到想要换掉的，然后replace写完，如果require的是本地路径应该无需`go mod tidy`，如果是版本号应该是需要的   
 还有一个**问题**是：譬如我的fork中都是import lni/dragonboat，那如果我的fork版dragonboat的**replace**在其他依赖my fork的项目不生效，那此项目能正常用my fork，而不是一部分my fork dragonboat，一部分lni/dragonboat？  
-**不会生效！**所以必须在用my fork/xxx的项目中也加入**replace**，这样此项目也会有替换；所以拉自己的库不是这么简单的事，得考虑自己的库是不是个fork，即没有把所有import名字改成my name   
-
+**不会生效！**所以必须在用my fork/xxx的项目中也加入**replace**，这样此项目也会有替换，但这样我不好说有没有效，建议暴力字符串匹配；所以拉自己的库不是这么简单的事，得考虑自己的库是不是个fork，即没有把所有import名字改成my name   
 **replace**进一步了解可搜一篇csdn博客`Go mod 学习之 replace 篇`   
 
 ## More About Git ##
@@ -142,4 +152,10 @@ $ git remote add origin url
 $ git add .
 $ git commit -m "whatever"
 $ git push -u origin master # 要有u，不然可能出现奇怪的deatched，u是用于关联的
+```
+
+- 拉取
+```shell
+$ git pull origin v2 # merge可能涉及rebase的选择，自行了解
+$ git log # 看本地和remote的HEAD在不在一起
 ```

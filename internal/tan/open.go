@@ -23,7 +23,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/cockroachdb/errors/oserror"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 	"github.com/lni/goutils/syncutil"
 )
 

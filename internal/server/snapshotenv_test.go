@@ -18,8 +18,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/foreeest/dragonboat/v2/internal/vfs"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 )
 
 func reportLeakedFD(fs vfs.IFS, t *testing.T) {

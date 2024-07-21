@@ -20,7 +20,7 @@ import (
 
 const (
 	// RepoName is the repo name used in capnslog.
-	RepoName = "github.com/lni/dragonboat/v4"
+	RepoName = "github.com/foreeest/dragonboat/v2"
 )
 
 // CreateCapnsLog creates an ILogger instance based on capnslog.

@@ -2,8 +2,6 @@ module github.com/foreeest/dragonboat/v2
 
 go 1.22.2
 
-replace github.com/lni/dragonboat/v4 => ../dragonboat
-
 require (
 	github.com/VictoriaMetrics/metrics v1.35.1
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -14,12 +12,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/memberlist v0.5.1
 	github.com/kr/pretty v0.3.1
-	github.com/lni/dragonboat/v4 v4.0.0-20240618143154-6a1623140f27
 	github.com/lni/goutils v1.4.0
 	github.com/lni/vfs v0.2.1-0.20220616104132-8852fd867376
 	github.com/pierrec/lz4/v4 v4.1.21
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/sys v0.22.0
 )
 

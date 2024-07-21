@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/tests"
+	"github.com/foreeest/dragonboat/v2/internal/tests"
 )
 
 func TestOnDiskSMCanBeOpened(t *testing.T) {

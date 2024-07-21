@@ -27,8 +27,8 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/logger"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/logger"
 )
 
 var plog = logger.GetLogger("registry")
