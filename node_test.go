@@ -106,7 +106,7 @@ func newTestRouter(shardID uint64, replicaIDList []uint64) *testRouter {
 	return &testRouter{qm: m, shardID: shardID}
 }
 
-func (r *testRouter) shouldDrop(msg pb.Message) bool {
+func (r *testRouter) shouldDrop(msg pb.MY_Message) bool {
 	if raft.IsLocalMessageType(msg.Type) {
 		return false
 	}
@@ -119,7 +119,7 @@ func (r *testRouter) shouldDrop(msg pb.Message) bool {
 	return false
 }
 
-func (r *testRouter) send(msg pb.Message) {
+func (r *testRouter) send(msg pb.MY_Message) {
 	if msg.ShardID != r.shardID {
 		panic("shard id does not match")
 	}
@@ -358,7 +358,7 @@ func singleStepNodes(nodes []*node, smList []*rsm.StateMachine,
 	r *testRouter) {
 	for _, node := range nodes {
 		tick := node.pendingReadIndexes.getTick() + 1
-		tickMsg := pb.Message{Type: pb.LocalTick, To: node.replicaID, Hint: tick}
+		tickMsg := pb.MY_Message{Type: pb.LocalTick, To: node.replicaID, Hint: tick}
 		tickMsg.ShardID = testShardID
 		r.send(tickMsg)
 	}
@@ -371,7 +371,7 @@ func stepNodes(nodes []*node, smList []*rsm.StateMachine,
 	for i := uint64(0); i < s; i++ {
 		for _, node := range nodes {
 			tick := node.pendingReadIndexes.getTick() + 1
-			tickMsg := pb.Message{
+			tickMsg := pb.MY_Message{
 				Type:    pb.LocalTick,
 				To:      node.replicaID,
 				ShardID: testShardID,

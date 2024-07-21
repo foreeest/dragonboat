@@ -7,7 +7,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cockroachdb/errors v1.11.3
 	github.com/cockroachdb/pebble v1.1.1
-	github.com/foreeest/dragonboat v1.0.0
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/memberlist v0.5.1

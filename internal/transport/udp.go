@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
-	"github.com/foreeest/dragonboat/config"
-	"github.com/foreeest/dragonboat/internal/settings"
+	"github.com/foreeest/dragonboat/v2/config"
+	"github.com/foreeest/dragonboat/v2/internal/settings"
 
 	//"github.com/lni/goutils/stringutil"
 	"os"
@@ -16,8 +16,8 @@ import (
 	//"github.com/foreeest/dragonboat/logger"
 	"hash/crc32"
 
-	"github.com/foreeest/dragonboat/raftio"
-	pb "github.com/foreeest/dragonboat/raftpb"
+	"github.com/foreeest/dragonboat/v2/raftio"
+	pb "github.com/foreeest/dragonboat/v2/raftpb"
 	"github.com/lni/goutils/syncutil"
 
 	//"io"
@@ -29,11 +29,11 @@ import (
 var (
 	// ErrBadMessage is the error returned to indicate the incoming message is
 	// corrupted.
-	ErrBadMessage     = errors.New("invalid message")
-	errPoisonReceived = errors.New("poison received")
-	magicNumber       = [2]byte{0xAE, 0x7D}
-	poisonNumber      = [2]byte{0x0, 0x0}
-	payloadBufferSize = settings.SnapshotChunkSize + 1024*128
+	ErrBadMessage       = errors.New("invalid message")
+	errPoisonReceived   = errors.New("poison received")
+	magicNumber         = [2]byte{0xAE, 0x7D}
+	poisonNumber        = [2]byte{0x0, 0x0}
+	payloadBufferSize   = settings.SnapshotChunkSize + 1024*128
 	magicNumberDuration = 1 * time.Second
 	headerDuration      = 2 * time.Second
 	// readDuration        = 5 * time.Second
@@ -198,7 +198,7 @@ func readMessage(conn *net.UDPConn,
 	var buffer []byte           // 先整条信息读出来，再逐步分解
 	buffer = make([]byte, 1500) //数据报最大大小是1500
 	//gpt4o:当缓冲区 p 的大小大于从网络连接中读取的数据时，不会发生错误或异常，只是缓冲区 p 的一部分会被使用来存储读取到的数据，其余部分保持不变
-	n, buffer, err := readMessage_to_buff(conn, buffer)//ReadFromUDP,返回*UDPAddr
+	n, buffer, err := readMessage_to_buff(conn, buffer) //ReadFromUDP,返回*UDPAddr
 	if err != nil {
 		return requestHeader{}, nil, err
 	}
@@ -336,7 +336,6 @@ type UDP struct {
 }
 
 var _ raftio.ITransport = (*UDP)(nil)
-
 
 // 上面的decode 和encode,APPL 头部不改
 // FIXME:
