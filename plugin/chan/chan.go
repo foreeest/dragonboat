@@ -75,8 +75,11 @@ func (cc *ChanConnection) Close() {
 	close(cc.cc.senderClosed)
 }
 
+// 实现了一个基于通道的传输模块（ChanTransport），主要用于测试目的。
+// 它模拟了网络传输的行为，使用Go的通道（channel）来代替实际的网络通信。
+// 这个模块支持普通消息和快照数据的传输。以下是关键组件和功能的详细解析：
 // SendMessageBatch ...
-func (cc *ChanConnection) SendMessageBatch(batch pb.MessageBatch) error {
+func (cc *ChanConnection) SendMessageBatch(batch pb.MessageBatch, bitset uint64) error {
 	if cc.cc.snapshot {
 		panic("sending message on snapshot cc")
 	}

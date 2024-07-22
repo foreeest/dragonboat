@@ -58,7 +58,7 @@ type IConnection interface {
 	// recommended to deliver the message batch to the target in order to enjoy
 	// the best possible performance, but out of order delivery is allowed at the
 	// cost of reduced performance.
-	SendMessageBatch(batch pb.MessageBatch) error
+	SendMessageBatch(batch pb.MessageBatch, bitset uint64) error
 }
 
 // ISnapshotConnection is the interface used by the transport module for sending

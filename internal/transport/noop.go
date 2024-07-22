@@ -93,7 +93,7 @@ func (c *NOOPConnection) Close() {
 }
 
 // SendMessageBatch return ErrRequestedToFail when requested.
-func (c *NOOPConnection) SendMessageBatch(batch raftpb.MessageBatch) error {
+func (c *NOOPConnection) SendMessageBatch(batch raftpb.MessageBatch, bitset uint64) error {
 	if c.req.Fail() {
 		return ErrRequestedToFail
 	}

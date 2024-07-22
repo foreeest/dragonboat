@@ -5,8 +5,8 @@ go 1.22.2
 require (
 	github.com/VictoriaMetrics/metrics v1.35.1
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/cockroachdb/errors v1.11.3
-	github.com/cockroachdb/pebble v1.1.1
+    github.com/cockroachdb/errors v1.9.0
+	github.com/cockroachdb/pebble v0.0.0-20221207173255-0f086d933dac
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/memberlist v0.5.1
