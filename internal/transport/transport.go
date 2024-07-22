@@ -221,7 +221,9 @@ func NewTransport(nhConfig config.NodeHostConfig,
 		msgHandler: handler,
 	}
 	t.addressMap = map[string]uint64{
-		"127.0.0.1:8898": 0, //这是示例
+		"127.0.0.1:63001": 0, //这是示例
+		"127.0.0.1:63002": 1,
+		"127.0.0.1:63003": 2,
 	}
 
 	chunks := NewChunk(t.handleRequest,
