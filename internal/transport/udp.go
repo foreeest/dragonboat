@@ -176,10 +176,10 @@ func writeMessage(conn *net.UDPConn,
 	if err := conn.SetWriteDeadline(tt); err != nil {
 		return err
 	}
-	if len(buf) > 1480 {
-		fmt.Printf("buf must be split, but JPF didn't handle ,exit")
-		os.Exit(1)
-	}
+	// if len(buf) > 1480 {
+	// 	fmt.Printf("buf must be split, but JPF didn't handle ,exit")
+	// 	os.Exit(1)
+	// }
 	merge := append(magicNumber[:], headerBuf...)
 	to_send_buff := append(merge, buf...)
 	// fmt.Printf("header.crc when write: %d\n", header.crc)
