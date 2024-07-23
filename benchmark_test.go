@@ -457,7 +457,7 @@ func benchmarkTransport(b *testing.B, sz int) {
 			b.Fatalf("failed to stop the transport module %v", err)
 		}
 	}()
-	msgs := make([]pb.Message, 0)
+	msgs := make([]pb.MY_Message, 0)
 	e := pb.Entry{
 		Index:       12843560,
 		Term:        123,
@@ -469,9 +469,11 @@ func benchmarkTransport(b *testing.B, sz int) {
 		Cmd:         make([]byte, sz),
 	}
 	for i := 0; i < 128; i++ {
-		m := pb.Message{
+		var to_list_2 []uint64
+		to_list_2 = append(to_list_2, 2)
+		m := pb.MY_Message{
 			Type:     pb.Replicate,
-			To:       2,
+			To:       to_list_2,
 			From:     1,
 			ShardID:  1,
 			Term:     100,
