@@ -687,9 +687,9 @@ func TestTCPTransportIsUsedByDefault(t *testing.T) {
 	to := &testOption{
 		tf: func(nh *NodeHost) {
 			tt := nh.transport.(*transport.Transport)
-			if tt.GetTrans().Name() != transport.TCPTransportName {
+			if tt.GetTrans().Name() != transport.UDPTransportName {
 				t.Errorf("transport type name %s, expect %s",
-					tt.GetTrans().Name(), transport.TCPTransportName)
+					tt.GetTrans().Name(), transport.UDPTransportName)
 			}
 		},
 		noElection: true,
@@ -5624,8 +5624,10 @@ func TestInstallSnapshotMessageIsNeverDropped(t *testing.T) {
 		tf: func(nh *NodeHost) {
 			nh.partitioned = 1
 			handler := newNodeHostMessageHandler(nh)
-			msg := pb.Message{Type: pb.InstallSnapshot, ShardID: 1, To: 1}
-			batch := pb.MessageBatch{Requests: []pb.Message{msg}}
+			var to_list_1 []uint64
+			to_list_1 = append(to_list_1, 1)
+			msg := pb.MY_Message{Type: pb.InstallSnapshot, ShardID: 1, To: to_list_1}
+			batch := pb.MessageBatch{Requests: []pb.MY_Message{msg}}
 			s, m := handler.HandleMessageBatch(batch)
 			if s != 1 {
 				t.Errorf("snapshot message dropped, %d", s)
@@ -5644,10 +5646,14 @@ func TestMessageToUnknownNodeIsIgnored(t *testing.T) {
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
 			handler := newNodeHostMessageHandler(nh)
-			msg1 := pb.Message{Type: pb.Ping, ShardID: 1, To: 1}
-			msg2 := pb.Message{Type: pb.Pong, ShardID: 1, To: 1}
-			msg3 := pb.Message{Type: pb.Pong, ShardID: 1, To: 2}
-			batch := pb.MessageBatch{Requests: []pb.Message{msg1, msg2, msg3}}
+			var to_list_1 []uint64
+			to_list_1 = append(to_list_1, 1)
+			msg1 := pb.MY_Message{Type: pb.Ping, ShardID: 1, To: to_list_1}
+			msg2 := pb.MY_Message{Type: pb.Pong, ShardID: 1, To: to_list_1}
+			var to_list_2 []uint64
+			to_list_2 = append(to_list_2, 2)
+			msg3 := pb.MY_Message{Type: pb.Pong, ShardID: 1, To: to_list_2}
+			batch := pb.MessageBatch{Requests: []pb.MY_Message{msg1, msg2, msg3}}
 			s, m := handler.HandleMessageBatch(batch)
 			if s != 0 {
 				t.Errorf("unexpected snapshot count, %d", s)
@@ -5901,8 +5907,10 @@ func TestSnapshotReceivedMessageCanBeConverted(t *testing.T) {
 	mq := server.NewMessageQueue(1024, false, lazyFreeCycle, 1024)
 	node := &node{shardID: 1, replicaID: 1, mq: mq}
 	h.nh.mu.shards.Store(uint64(1), node)
+	var to_list_1 []uint64
+	to_list_1 = append(to_list_1, 1)
 	mb := pb.MessageBatch{
-		Requests: []pb.Message{{To: 1, From: 2, ShardID: 1, Type: pb.SnapshotReceived}},
+		Requests: []pb.MY_Message{{To: to_list_1, From: 2, ShardID: 1, Type: pb.SnapshotReceived}},
 	}
 	sc, mc := h.HandleMessageBatch(mb)
 	if sc != 0 || mc != 1 {
@@ -5935,8 +5943,10 @@ func TestIncorrectlyRoutedMessagesAreIgnored(t *testing.T) {
 	mq := server.NewMessageQueue(1024, false, lazyFreeCycle, 1024)
 	node := &node{shardID: 1, replicaID: 1, mq: mq}
 	h.nh.mu.shards.Store(uint64(1), node)
+	var to_list_3 []uint64
+	to_list_3 = append(to_list_3, 3)
 	mb := pb.MessageBatch{
-		Requests: []pb.Message{{To: 3, From: 2, ShardID: 1, Type: pb.SnapshotReceived}},
+		Requests: []pb.MY_Message{{To: to_list_3, From: 2, ShardID: 1, Type: pb.SnapshotReceived}},
 	}
 	sc, mc := h.HandleMessageBatch(mb)
 	if sc != 0 || mc != 0 {
