@@ -340,7 +340,7 @@ func TestChunkAreIgnoredWhenNodeIsRemoved(t *testing.T) {
 			t.Fatalf("failed to add chunk")
 		}
 		snapshotDir := env.GetRootDir()
-		if err := fileutil.MarkDirAsDeleted(snapshotDir, &pb.Message{}, chunks.fs); err != nil {
+		if err := fileutil.MarkDirAsDeleted(snapshotDir, &pb.MY_Message{}, chunks.fs); err != nil {
 			t.Fatalf("failed to create the delete flag %v", err)
 		}
 		for idx, c := range inputs {
@@ -501,9 +501,11 @@ func testSnapshotWithExternalFilesAreHandledByChunk(t *testing.T,
 			Term:     200,
 			Files:    []*pb.SnapshotFile{sf1, sf2},
 		}
-		msg := pb.Message{
+		var to_list_2 []uint64
+		to_list_2 = append(to_list_2, 2)
+		msg := pb.MY_Message{
 			Type:     pb.InstallSnapshot,
-			To:       2,
+			To:       to_list_2,
 			From:     1,
 			ShardID:  100,
 			Snapshot: ss,
@@ -554,9 +556,11 @@ func TestWitnessSnapshotCanBeHandled(t *testing.T) {
 			Dummy:    false,
 			Witness:  true,
 		}
-		msg := pb.Message{
+		var to_list_2 []uint64
+		to_list_2 = append(to_list_2, 2)
+		msg := pb.MY_Message{
 			Type:     pb.InstallSnapshot,
-			To:       2,
+			To:       to_list_2,
 			From:     1,
 			ShardID:  100,
 			Snapshot: ss,
@@ -599,9 +603,11 @@ func TestSnapshotRecordWithoutExternalFilesCanBeSplitIntoChunk(t *testing.T) {
 		Index:    100,
 		Term:     200,
 	}
-	msg := pb.Message{
+	var to_list_2 []uint64
+	to_list_2 = append(to_list_2, 2)
+	msg := pb.MY_Message{
 		Type:     pb.InstallSnapshot,
-		To:       2,
+		To:       to_list_2,
 		From:     1,
 		ShardID:  100,
 		Snapshot: ss,
@@ -620,7 +626,7 @@ func TestSnapshotRecordWithoutExternalFilesCanBeSplitIntoChunk(t *testing.T) {
 		if c.ShardID != msg.ShardID {
 			t.Errorf("unexpected shard id")
 		}
-		if c.ReplicaID != msg.To {
+		if c.ReplicaID != msg.To[0] {
 			t.Errorf("unexpected node id")
 		}
 		if c.From != msg.From {
@@ -684,9 +690,11 @@ func TestSnapshotRecordWithTwoExternalFilesCanBeSplitIntoChunk(t *testing.T) {
 		Term:     200,
 		Files:    []*pb.SnapshotFile{sf1, sf2},
 	}
-	msg := pb.Message{
+	var to_list_2 []uint64
+	to_list_2 = append(to_list_2, 2)
+	msg := pb.MY_Message{
 		Type:     pb.InstallSnapshot,
-		To:       2,
+		To:       to_list_2,
 		From:     1,
 		ShardID:  100,
 		Snapshot: ss,
@@ -778,7 +786,7 @@ func TestGetMessageFromChunk(t *testing.T) {
 		if req.Type != pb.InstallSnapshot {
 			t.Errorf("not a snapshot message")
 		}
-		if req.From != chunk.From || req.To != chunk.ReplicaID || req.ShardID != chunk.ShardID {
+		if req.From != chunk.From || req.To[0] != chunk.ReplicaID || req.ShardID != chunk.ShardID {
 			t.Errorf("invalid req fields")
 		}
 		ss := req.Snapshot
