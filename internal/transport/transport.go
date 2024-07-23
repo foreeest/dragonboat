@@ -393,6 +393,7 @@ func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 			return false, unknownTarget
 		}
 		bitNumber, ok := t.addressMap[addr_0]
+		fmt.Printf("396line  addr_0 is %s\n", addr_0)
 		if !ok {
 			fmt.Printf("error: addr return by transport.resolver.Resolve(shardID, toReplicaID) is not in transport.addressMap")
 		}
