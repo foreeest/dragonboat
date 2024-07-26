@@ -931,6 +931,7 @@ func (r *raft) My_sendReplicateMessage(to_nid [32]uint64, to_nid_next int) {
 		to_send_messages, ok := map_pb_remote_and_nonvoting[rp.next]
 		if ok { //JPF:这个index的my_message已经被创建，只需要给它的To appned就好了
 			to_send_messages.To = append(to_send_messages.To, rp_nid)
+			map_pb_remote_and_nonvoting[rp.next] = to_send_messages
 		} else { //JPF:需要创建my_message,并给到map里面
 			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
 			if err != nil {
@@ -971,6 +972,7 @@ func (r *raft) My_sendReplicateMessage(to_nid [32]uint64, to_nid_next int) {
 		to_send_messages_witness, ok := map_pb_witness[rp.next]
 		if ok {
 			to_send_messages_witness.To = append(to_send_messages_witness.To, rp_nid)
+			map_pb_witness[rp.next] = to_send_messages_witness
 		} else {
 			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
 			if err != nil {

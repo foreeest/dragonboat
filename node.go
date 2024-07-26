@@ -1070,12 +1070,6 @@ func (n *node) sendReplicateMessages(ud pb.Update) {
 			n.sendRaftMessage(msg)
 		}
 	}
-	for _, My_msg := range ud.My_Messages {
-		if isFreeOrderMessage(My_msg) {
-			My_msg.ShardID = n.shardID
-			n.sendRaftMessage(My_msg)
-		}
-	}
 }
 
 func (n *node) getUpdate() (pb.Update, bool, error) {
