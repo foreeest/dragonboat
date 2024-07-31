@@ -162,6 +162,7 @@ func (r *remote) progress(lastIndex uint64) {
 	} else if r.state == remoteRetry {
 		r.retryToWait()
 	} else {
+		// fmt.Printf("state, %d",r.state)
 		panic("unexpected remote state")
 	}
 }
@@ -195,14 +196,17 @@ func (r *remote) decreaseTo(rejected uint64, last uint64) bool {
 }
 
 func (r *remote) isPaused() bool {
+	 
 	switch r.state {
 	case remoteRetry:
 		return false
 	case remoteWait:
+		//fmt.Printf("remote.go line 199 isPaused return true\n")
 		return true
 	case remoteReplicate:
 		return false
 	case remoteSnapshot:
+		//fmt.Printf("remote.go line 199 isPaused return true\n")
 		return true
 	default:
 		panic("unexpected remote state")

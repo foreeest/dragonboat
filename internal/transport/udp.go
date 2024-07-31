@@ -36,8 +36,8 @@ var (
 	payloadBufferSize   = settings.SnapshotChunkSize + 1024*128
 	magicNumberDuration = 1 * time.Second
 	headerDuration      = 2 * time.Second
-	// readDuration        = 5 * time.Second
-	// writeDuration       = 5 * time.Second
+	//readDuration        = 5 * time.Second
+	//writeDuration       = 5 * time.Second
 	keepAlivePeriod = 10 * time.Second
 	perConnBufSize  = settings.Soft.PerConnectionSendBufSize
 	recvBufSize     = settings.Soft.PerConnectionRecvBufSize
@@ -45,7 +45,7 @@ var (
 
 const (
 	// UDPTransportName is the name of the tcp transport module.
-	UDPTransportName         = "go-udp-transport"
+	UDPTransportName         = "GO-udp-transport"
 	requestHeaderSize        = 26
 	raftType          uint16 = 100
 	snapshotType      uint16 = 200
@@ -179,14 +179,20 @@ func writeMessage(conn *net.UDPConn,
 	if err := conn.SetWriteDeadline(tt); err != nil {
 		return err
 	}
+	//fmt.Printf("len(buf) is %d", len(buf))
 	if len(buf) > 1480 {
+		fmt.Printf("len(buf) is %d", len(buf))
 		fmt.Printf("buf must be split, but JPF didn't handle ,exit")
-		os.Exit(1)
+		fmt.Printf("need to be  exit(1), but this is debug , so didn't")
+		//os.Exit(1)
 	}
 	merge := append(magicNumber[:], headerBuf...)
 	to_send_buff := append(merge, buf...)
 	// fmt.Printf("header.crc when write: %d\n", header.crc)
 	// fmt.Printf("when write :crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize: len(to_send_buff)]) :%d\n", crc32.ChecksumIEEE(to_send_buff[len(magicNumber)+requestHeaderSize:len(to_send_buff)]))
+	//remoteHost := conn.RemoteAddr().String()
+	//localHost := conn.LocalAddr().String()
+	//fmt.Printf("Sending from %s to %s\n", localHost, remoteHost)
 	if _, err := conn.Write(to_send_buff); err != nil {
 		return err
 	}
@@ -363,31 +369,63 @@ func (t *UDP) get_udp_Addr(IPaddress_and_port string) (*net.UDPAddr, error) {
 	return addr, err
 }
 
+//	func (t *UDP) serveConn(conn *net.UDPConn, addr *net.UDPAddr) error {
+//		magicNum := make([]byte, len(magicNumber))
+//		header := make([]byte, requestHeaderSize)
+//		tbuf := make([]byte, payloadBufferSize)
+//		for {
+//			// fmt.Printf("2\n")
+//			rheader, buf, err := readMessage(conn, header, tbuf, magicNum, t.encrypted, addr)
+//			if err != nil {
+//				return err
+//			}
+//			if rheader.method == raftType {
+//				batch := pb.MessageBatch{}
+//				if err := batch.Unmarshal(buf); err != nil {
+//					return nil
+//				}
+//				t.requestHandler(batch)
+//				// fmt.Printf("have read a packet and handle!\n")
+//			} else {
+//				chunk := pb.Chunk{}
+//				if err := chunk.Unmarshal(buf); err != nil {
+//					return nil
+//				}
+//				if !t.chunkHandler(chunk) {
+//					plog.Errorf("chunk rejected %s", chunkKey(chunk))
+//					return nil
+//				}
+//			}
+//		}
+//	}
 func (t *UDP) serveConn(conn *net.UDPConn, addr *net.UDPAddr) error {
 	magicNum := make([]byte, len(magicNumber))
 	header := make([]byte, requestHeaderSize)
 	tbuf := make([]byte, payloadBufferSize)
 	for {
-		// fmt.Printf("2\n")
 		rheader, buf, err := readMessage(conn, header, tbuf, magicNum, t.encrypted, addr)
 		if err != nil {
+			plog.Errorf("error reading message: %v", err)
 			return err
 		}
 		if rheader.method == raftType {
 			batch := pb.MessageBatch{}
-			if err := batch.Unmarshal(buf); err != nil {
-				return nil
+			plog.Infof("Received buffer: %x", buf) // 增加日志记录接收到的buffer内容
+			if err := batch.Unmarshal(buf, rheader.bitset); err != nil {
+				plog.Errorf("error unmarshalling batch: %v", err)
+				return err
 			}
 			t.requestHandler(batch)
-			// fmt.Printf("have read a packet and handle!\n")
 		} else {
 			chunk := pb.Chunk{}
 			if err := chunk.Unmarshal(buf); err != nil {
-				return nil
+				plog.Errorf("error unmarshalling chunk: %v", err)
+				return err
 			}
 			if !t.chunkHandler(chunk) {
-				plog.Errorf("chunk rejected %s", chunkKey(chunk))
-				return nil
+				err := fmt.Errorf("chunk rejected %s", chunkKey(chunk))
+				plog.Errorf("error handling chunk: %v", err)
+				return err
 			}
 		}
 	}

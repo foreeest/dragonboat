@@ -191,6 +191,7 @@ func (p *Peer) Handle(m pb.MY_Message) error {
 	if IsLocalMessageType(m.Type) {
 		panic("local message sent to Step")
 	}
+	//fmt.Printf("in peer handle the length of tos:%d\n",len(m.To))
 	_, rok := p.raft.remotes[m.From]
 	_, ook := p.raft.nonVotings[m.From]
 	_, wok := p.raft.witnesses[m.From]

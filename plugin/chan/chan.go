@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"encoding/binary"
 	"sync"
 
 	"github.com/cockroachdb/errors"
@@ -84,10 +85,14 @@ func (cc *ChanConnection) SendMessageBatch(batch pb.MessageBatch, bitset uint64)
 		panic("sending message on snapshot cc")
 	}
 	data := pb.MustMarshal(&batch)
+	//将bitset写入data,成为resultslice
+	bitset_byte := make([]byte, 8)
+	binary.BigEndian.PutUint64(bitset_byte, bitset)
+	resultslice := append(bitset_byte, data...)
 	select {
 	case <-cc.cc.recverClosed:
 		return ErrClosed
-	case cc.cc.dataChan <- data:
+	case cc.cc.dataChan <- resultslice:
 	}
 	return nil
 }
@@ -230,7 +235,10 @@ func (ct *ChanTransport) process(data []byte, cc chanConn) bool {
 		}
 	} else {
 		batch := pb.MessageBatch{}
-		if err := batch.Unmarshal(data); err != nil {
+		bitset_byte := data[0:8]
+		data_true := data[8:len(data)]
+		value_of_bitset := binary.BigEndian.Uint64(bitset_byte)
+		if err := batch.Unmarshal(data_true, value_of_bitset); err != nil {
 			return false
 		}
 		ct.requestHandler(batch)

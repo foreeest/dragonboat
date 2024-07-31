@@ -198,7 +198,7 @@ func (h *testMessageHandler) HandleMessageBatch(reqs raftpb.MessageBatch) (uint6
 	ss := uint64(0)
 	msg := uint64(0)
 	for _, req := range reqs.Requests {
-		epk := raftio.GetNodeInfo(req.ShardID, req.To[0]) //JPF added[0]
+		epk := raftio.GetNodeInfo(req.ShardID, req.To)
 		v, ok := h.requestCount[epk]
 		if ok {
 			h.requestCount[epk] = v + 1
@@ -384,11 +384,9 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 	defer stopper.Stop()
 	nodes.Add(100, 2, serverAddress)
 	for i := 0; i < 20; i++ {
-		var to_list_2 []uint64
-		to_list_2 = append(to_list_2, 2)
-		msg := raftpb.MY_Message{
+		msg := raftpb.Message{
 			Type:    raftpb.Heartbeat,
-			To:      to_list_2,
+			To:      2,
 			ShardID: 100,
 		}
 		done := trans.Send(msg)
@@ -414,11 +412,9 @@ func testMessageCanBeSent(t *testing.T, mutualTLS bool, sz uint64, fs vfs.IFS) {
 	// test to ensure a single big message can be sent/received.
 	plog.Infof("sending a test msg with payload sz %d", sz)
 	payload := make([]byte, sz)
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	m := raftpb.MY_Message{
+	m := raftpb.Message{
 		Type:    raftpb.Replicate,
-		To:      to_list_2,
+		To:      2,
 		ShardID: 100,
 		Entries: []raftpb.Entry{
 			{
@@ -487,11 +483,9 @@ func testMessageCanBeSentWithLargeLatency(t *testing.T, mutualTLS bool, fs vfs.I
 	defer stopper.Stop()
 	nodes.Add(100, 2, serverAddress)
 	for i := 0; i < 128; i++ {
-		var to_list_2 []uint64
-		to_list_2 = append(to_list_2, 2)
-		msg := raftpb.MY_Message{
+		msg := raftpb.Message{
 			Type:    raftpb.Replicate,
-			To:      to_list_2,
+			To:      2,
 			ShardID: 100,
 			Entries: []raftpb.Entry{{Cmd: make([]byte, 1024)}},
 		}
@@ -539,11 +533,9 @@ func testMessageBatchWithNotMatchedDBVAreDropped(t *testing.T,
 	nodes.Add(100, 2, serverAddress)
 	trans.SetPreSendBatchHook(f)
 	for i := 0; i < 100; i++ {
-		var to_list_2 []uint64
-		to_list_2 = append(to_list_2, 2)
-		msg := raftpb.MY_Message{
+		msg := raftpb.Message{
 			Type:    raftpb.Heartbeat,
-			To:      to_list_2,
+			To:      2,
 			ShardID: 100,
 		}
 		// silently drop
@@ -612,11 +604,9 @@ func TestCircuitBreakerKicksInOnConnectivityIssue(t *testing.T) {
 	}()
 	defer stopper.Stop()
 	nodes.Add(100, 2, "nosuchhost:39001")
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_2,
+		To:      2,
 		From:    1,
 		ShardID: 100,
 	}
@@ -641,13 +631,11 @@ func TestCircuitBreakerKicksInOnConnectivityIssue(t *testing.T) {
 	}
 }
 
-func getTestSnapshotMessage(to uint64) raftpb.MY_Message {
-	var to_list_to []uint64
-	to_list_to = append(to_list_to, to)
-	m := raftpb.MY_Message{
+func getTestSnapshotMessage(to uint64) raftpb.Message {
+	m := raftpb.Message{
 		Type:    raftpb.InstallSnapshot,
 		From:    12,
-		To:      to_list_to,
+		To:      to,
 		ShardID: 100,
 		Snapshot: raftpb.Snapshot{
 			Membership: raftpb.Membership{
@@ -1148,11 +1136,9 @@ func TestInitialMessageCanBeSent(t *testing.T) {
 		}
 	}()
 	nodes.Add(100, 2, serverAddress)
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_2,
+		To:      2,
 		ShardID: 100,
 	}
 	connReq.SetToFail(false)
@@ -1188,11 +1174,9 @@ func TestFailedConnectionIsRemovedFromTransport(t *testing.T) {
 		}
 	}()
 	nodes.Add(100, 2, serverAddress)
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_2,
+		To:      2,
 		ShardID: 100,
 	}
 	connReq.SetToFail(false)
@@ -1229,11 +1213,9 @@ func TestCircuitBreakerCauseFailFast(t *testing.T) {
 		}
 	}()
 	nodes.Add(100, 2, serverAddress)
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_2,
+		To:      2,
 		ShardID: 100,
 	}
 	connReq.SetToFail(false)
@@ -1282,18 +1264,14 @@ func TestCircuitBreakerForResolveNotShared(t *testing.T) {
 		}
 	}()
 	nodes.Add(100, 2, serverAddress)
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_2,
+		To:      2,
 		ShardID: 100,
 	}
-	var to_list_3 []uint64
-	to_list_3 = append(to_list_3, 3)
-	msgUnknownNode := raftpb.MY_Message{
+	msgUnknownNode := raftpb.Message{
 		Type:    raftpb.Heartbeat,
-		To:      to_list_3,
+		To:      3,
 		ShardID: 100,
 	}
 	connReq.SetToFail(false)
@@ -1424,11 +1402,9 @@ func TestInMemoryEntrySizeCanBeLimitedWhenSendingMessages(t *testing.T) {
 	}()
 	nodes.Add(100, 2, serverAddress)
 	e := raftpb.Entry{Cmd: make([]byte, 1024*1024*10)}
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		ShardID: 100,
-		To:      to_list_2,
+		To:      2,
 		Type:    raftpb.Replicate,
 		Entries: []raftpb.Entry{e},
 	}
@@ -1458,11 +1434,9 @@ func TestInMemoryEntrySizeCanDropToZero(t *testing.T) {
 	}()
 	nodes.Add(100, 2, serverAddress)
 	e := raftpb.Entry{Cmd: make([]byte, 1024*1024*10)}
-	var to_list_2 []uint64
-	to_list_2 = append(to_list_2, 2)
-	msg := raftpb.MY_Message{
+	msg := raftpb.Message{
 		ShardID: 100,
-		To:      to_list_2,
+		To:      2,
 		Type:    raftpb.Replicate,
 		Entries: []raftpb.Entry{e},
 	}

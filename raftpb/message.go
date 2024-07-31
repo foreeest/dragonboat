@@ -3,6 +3,7 @@
 
 package raftpb
 
+
 // type Message struct {
 // 	Type     MessageType
 // 	To       uint64
@@ -139,6 +140,72 @@ type MY_Message struct {
 	Snapshot Snapshot
 	HintHigh uint64
 }
+
+// func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
+// 	var i int
+// 	_ = i
+// 	var l int
+// 	_ = l
+// 	dAtA[i] = 0x8
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
+// 	dAtA[i] = 0x10
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.To[0]))
+// 	dAtA[i] = 0x18
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.From))
+// 	dAtA[i] = 0x20
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
+// 	dAtA[i] = 0x28
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
+// 	dAtA[i] = 0x30
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
+// 	dAtA[i] = 0x38
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
+// 	dAtA[i] = 0x40
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
+// 	dAtA[i] = 0x48
+// 	i++
+// 	if m.Reject {
+// 		dAtA[i] = 1
+// 	} else {
+// 		dAtA[i] = 0
+// 	}
+// 	i++
+// 	dAtA[i] = 0x50
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
+// 	if len(m.Entries) > 0 {
+// 		for _, msg := range m.Entries {
+// 			dAtA[i] = 0x5a
+// 			i++
+// 			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
+// 			n, err := msg.MarshalTo(dAtA[i:])
+// 			if err != nil {
+// 				return 0, err
+// 			}
+// 			i += n
+// 		}
+// 	}
+// 	dAtA[i] = 0x62
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
+// 	n2, err := m.Snapshot.MarshalTo(dAtA[i:])
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	i += n2
+// 	dAtA[i] = 0x68
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
+// 	return i, nil
+// }
 // 这个函数不用更改，修改其中调用的函数即可
 func (m *MY_Message) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
@@ -149,50 +216,42 @@ func (m *MY_Message) Marshal() (dAtA []byte, err error) {
 	}
 	return dAtA[:n], nil
 }
-
 func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-
-	// Type field，如果要查看的话，看这里的标识符即可！
 	dAtA[i] = 0x8
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
-
-    // From field
+	//fmt.Printf("Marshaling: fieldNum=1, value=%d\n", m.Type)
 	dAtA[i] = 0x10
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.From))
-
-	// ShardID field
+	// fmt.Printf("let's see m.To[0]:%d\n",m.To[0])
+	//JPF want to edit at 7/28-> down
+	i = encodeVarintRaft(dAtA, i, uint64(m.To[0]))
+	//JPF edit ->up
+	//fmt.Printf("Marshaling: fieldNum=2, value=%d\n", m.To[0])
 	dAtA[i] = 0x18
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
-
-	// Term field，要找term看这里的标识符
+	i = encodeVarintRaft(dAtA, i, uint64(m.From))
+	//fmt.Printf("Marshaling: fieldNum=3, value=%d\n", m.From)
 	dAtA[i] = 0x20
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
-
-	// LogTerm field
+	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
 	dAtA[i] = 0x28
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
-
-	// LogIndex field，要找LogIndex看这里的标识符
+	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
 	dAtA[i] = 0x30
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
-
-	// Commit field
+	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
 	dAtA[i] = 0x38
 	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
-
-	// Reject field，ps如果有其他bool类型也可以参考这里修改
+	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
 	dAtA[i] = 0x40
+	i++
+	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
+	dAtA[i] = 0x48
 	i++
 	if m.Reject {
 		dAtA[i] = 1
@@ -200,16 +259,12 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0
 	}
 	i++
-
-	// Hint field
-	dAtA[i] = 0x48
+	dAtA[i] = 0x50
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
-
-	// Entries field
 	if len(m.Entries) > 0 {
 		for _, msg := range m.Entries {
-			dAtA[i] = 0x52
+			dAtA[i] = 0x5a
 			i++
 			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(dAtA[i:])
@@ -219,9 +274,7 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 			i += n
 		}
 	}
-
-	// Snapshot field
-	dAtA[i] = 0x5a
+	dAtA[i] = 0x62
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
 	n2, err := m.Snapshot.MarshalTo(dAtA[i:])
@@ -229,13 +282,150 @@ func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
 		return 0, err
 	}
 	i += n2
-
-	// HintHigh field
-	dAtA[i] = 0x60
+	dAtA[i] = 0x68
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
 	return i, nil
 }
+
+// func (m *MY_Message) MarshalTo(dAtA []byte) (int, error) {
+// 	var i int
+// 	_ = i
+// 	var l int
+// 	_ = l
+
+// 	// Type field，如果要查看的话，看这里的标识符即可！
+// 	dAtA[i] = 0x8
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Type))
+
+//     // From field
+// 	dAtA[i] = 0x10
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.From))
+
+// 	// ShardID field
+// 	dAtA[i] = 0x18
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.ShardID))
+
+// 	// Term field，要找term看这里的标识符
+// 	dAtA[i] = 0x20
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Term))
+
+// 	// LogTerm field
+// 	dAtA[i] = 0x28
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogTerm))
+
+// 	// LogIndex field，要找LogIndex看这里的标识符
+// 	dAtA[i] = 0x30
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.LogIndex))
+
+// 	// Commit field
+// 	dAtA[i] = 0x38
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Commit))
+
+// 	// Reject field，ps如果有其他bool类型也可以参考这里修改
+// 	dAtA[i] = 0x40
+// 	i++
+// 	if m.Reject {
+// 		dAtA[i] = 1
+// 	} else {
+// 		dAtA[i] = 0
+// 	}
+// 	i++
+
+// 	// Hint field
+// 	dAtA[i] = 0x48
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Hint))
+
+// 	// Entries field
+// 	if len(m.Entries) > 0 {
+// 		for _, msg := range m.Entries {
+// 			dAtA[i] = 0x52
+// 			i++
+// 			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
+// 			n, err := msg.MarshalTo(dAtA[i:])
+// 			if err != nil {
+// 				return 0, err
+// 			}
+// 			i += n
+// 		}
+// 	}
+
+// 	// Snapshot field
+// 	dAtA[i] = 0x5a
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.Snapshot.Size()))
+// 	n2, err := m.Snapshot.MarshalTo(dAtA[i:])
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	i += n2
+
+// 	// HintHigh field
+// 	dAtA[i] = 0x60
+// 	i++
+// 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
+// 	return i, nil
+// }
+
+// func (m *MY_Message) Size() (n int) {
+// 	if m == nil {
+// 		return 0
+// 	}
+// 	var l int
+// 	_ = l
+
+// 	// Type field
+// 	n += 1 + sovRaft(uint64(m.Type)) //1 是字段标识符的大小，sovRaft 计算 Type 值的 Varint 编码大小
+
+// 	// From field
+// 	n += 1 + sovRaft(uint64(m.From))
+
+// 	// ShardID field
+// 	n += 1 + sovRaft(uint64(m.ShardID))
+
+// 	// Term field
+// 	n += 1 + sovRaft(uint64(m.Term))
+
+// 	// LogTerm field
+// 	n += 1 + sovRaft(uint64(m.LogTerm))
+
+// 	// LogIndex field
+// 	n += 1 + sovRaft(uint64(m.LogIndex))
+
+// 	// Commit field
+// 	n += 1 + sovRaft(uint64(m.Commit))
+
+// 	// Reject field
+// 	n += 2
+
+// 	// Hint field
+// 	n += 1 + sovRaft(uint64(m.Hint))
+
+// 	// Entries field
+// 	if len(m.Entries) > 0 {
+// 		for _, e := range m.Entries {
+// 			l = e.Size()
+// 			n += 1 + l + sovRaft(uint64(l))
+// 		}
+// 	}
+
+// 	// Snapshot field
+// 	l = m.Snapshot.Size()
+// 	n += 1 + l + sovRaft(uint64(l))
+
+// 	// HintHigh field
+// 	n += 1 + sovRaft(uint64(m.HintHigh))
+
+// 	return n
+// }
 
 func (m *MY_Message) Size() (n int) {
 	if m == nil {
@@ -243,48 +433,24 @@ func (m *MY_Message) Size() (n int) {
 	}
 	var l int
 	_ = l
-
-	// Type field
-	n += 1 + sovRaft(uint64(m.Type)) //1 是字段标识符的大小，sovRaft 计算 Type 值的 Varint 编码大小
-
-	// From field
+	n += 1 + sovRaft(uint64(m.Type))
+	n += 1 + sovRaft(uint64(m.To[0]))
 	n += 1 + sovRaft(uint64(m.From))
-
-	// ShardID field
 	n += 1 + sovRaft(uint64(m.ShardID))
-
-	// Term field
 	n += 1 + sovRaft(uint64(m.Term))
-
-	// LogTerm field
 	n += 1 + sovRaft(uint64(m.LogTerm))
-
-	// LogIndex field
 	n += 1 + sovRaft(uint64(m.LogIndex))
-
-	// Commit field
 	n += 1 + sovRaft(uint64(m.Commit))
-
-	// Reject field
 	n += 2
-
-	// Hint field
 	n += 1 + sovRaft(uint64(m.Hint))
-
-	// Entries field
 	if len(m.Entries) > 0 {
 		for _, e := range m.Entries {
 			l = e.Size()
 			n += 1 + l + sovRaft(uint64(l))
 		}
 	}
-
-	// Snapshot field
 	l = m.Snapshot.Size()
 	n += 1 + l + sovRaft(uint64(l))
-
-	// HintHigh field
 	n += 1 + sovRaft(uint64(m.HintHigh))
-
 	return n
 }

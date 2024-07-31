@@ -224,6 +224,10 @@ func NewTransport(nhConfig config.NodeHostConfig,
 		"127.0.0.1:12379": 0, //这是示例
 		"127.0.0.1:22379": 1,
 		"127.0.0.1:32379": 2,
+		"127.0.0.1:60000": 3,
+		"127.0.0.1:60001": 4,
+		"127.0.0.1:60002": 5,
+		"127.0.0.1:60003": 6,
 	}
 
 	chunks := NewChunk(t.handleRequest,
@@ -342,6 +346,7 @@ func (t *Transport) snapshotReceived(shardID uint64,
 
 func (t *Transport) notifyUnreachable(addr string, affected nodeMap) {
 	plog.Warningf("%s became unreachable, affected %d nodes", addr, len(affected))
+	plog.Warningf("Starting Resolve function...")
 	for n := range affected {
 		t.msgHandler.HandleUnreachable(n.ShardID, n.ReplicaID)
 	}
@@ -372,6 +377,7 @@ func (bk *BroadcastKey) String() string {
 	})
 	return fmt.Sprintf("%d-%v", bk.ShardID, bk.ToReplicaIDs)
 }
+
 func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 	if req.Type == pb.InstallSnapshot {
 		panic("snapshot message must be sent via its own channel.")
@@ -389,17 +395,23 @@ func (t *Transport) send(req pb.MY_Message) (bool, failedSend) {
 	var i int
 	for i = 0; i < len(req.To); i++ {
 		addr_0, _, err := t.resolver.Resolve(shardID, req.To[i])
+		bitset = bitset | 1<<(req.To[i]+32) //JPF edit at 7/28
 		if err != nil {
 			return false, unknownTarget
 		}
 		bitNumber, ok := t.addressMap[addr_0]
-		//fmt.Printf("396line  addr_0 is %s\n", addr_0)
 		if !ok {
-			fmt.Printf("396line  addr_0 is %s\n", addr_0)
 			fmt.Printf("error: addr return by transport.resolver.Resolve(shardID, toReplicaID) is not in transport.addressMap")
 		}
 		bitset = bitset | 1<<bitNumber
 	}
+	//调试信息
+	//fmt.Printf("To list is: ")
+	// for i = 0; i < len(req.To); i++ {
+	// 	fmt.Printf("%d  ", req.To[i])
+	// }
+	//fmt.Printf("bitset is %d\n", bitset)
+	//
 	addr, _, err := t.resolver.Resolve(shardID, req.To[0]) //// IResolver converts the (shard id, replica id) tuple to network address.
 	//这里的addr不重要，只是为了给后面传入参数而已
 	if err != nil {
@@ -563,6 +575,7 @@ func lazyFree(reqs []pb.MY_Message,
 }
 
 func (t *Transport) sendMessageBatch(conn raftio.IConnection,
+
 	batch pb.MessageBatch, bitset uint64) error {
 	if f := t.preSendBatch.Load(); f != nil {
 		updated, shouldSend := f.(SendMessageBatchFunc)(batch)

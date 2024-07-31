@@ -112,3 +112,25 @@ func (n *Registry) Resolve(shardID uint64, replicaID uint64) (string, string, er
 	}
 	return addr.(string), n.getConnectionKey(addr.(string), shardID), nil
 }
+
+// // Resolve looks up the address of the specified node.
+// func (n *Registry) Resolve(shardID uint64, replicaID uint64) (string, string, error) {
+// 	fmt.Printf("Starting Resolve function...")
+
+// 	key := raftio.GetNodeInfo(shardID, replicaID)
+// 	fmt.Printf("Generated key:", key)
+
+// 	addr, ok := n.addr.Load(key)
+// 	if !ok {
+// 		fmt.Println("Address not found for key:", key)
+// 		return "", "", ErrUnknownTarget
+// 	}
+
+// 	addrStr := addr.(string)
+// 	fmt.Println("Found address:", addrStr)
+
+// 	connKey := n.getConnectionKey(addrStr, shardID)
+// 	fmt.Println("Generated connection key:", connKey)
+
+// 	return addrStr, connKey, nil
+// }

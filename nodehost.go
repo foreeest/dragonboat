@@ -57,6 +57,7 @@ package dragonboat // github.com/foreeest/dragonboat/v2
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"runtime"
@@ -1878,6 +1879,7 @@ func (nh *NodeHost) sendMessage(msg pb.MY_Message) {
 		return
 	}
 	if msg.Type != pb.InstallSnapshot {
+		//fmt.Printf("in nodehost sendmessage\nThe to length is %d\n",len(msg.To))
 		nh.transport.Send(msg)
 	} else {
 		witness := msg.Snapshot.Witness
@@ -1888,8 +1890,15 @@ func (nh *NodeHost) sendMessage(msg pb.MY_Message) {
 			if witness || !n.OnDiskStateMachine() {
 				nh.transport.SendSnapshot(msg)
 			} else {
+				//JPF add debug
+				if len(msg.To) > 1 {
+					fmt.Printf("Nodehost.pushStreamSnapshotRequest(msg.ShardID, msg.To[0]),but To's len>1\n")
+				}
 				n.pushStreamSnapshotRequest(msg.ShardID, msg.To[0])
 			}
+		}
+		if len(msg.To) > 1 {
+			fmt.Printf("sys.Publish To[0],but To's len>1\n")
 		}
 		nh.events.sys.Publish(server.SystemEvent{
 			Type:      server.SendSnapshotStarted,
@@ -2094,7 +2103,14 @@ func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64
 			plog.Panicf("to field not set, %s", req.Type)
 		}
 		if n, ok := nh.getShard(req.ShardID); ok {
-			if n.replicaID != req.To[0] {
+			var Warningf_down bool
+			Warningf_down = false
+			for i := 0; i < len(req.To); i++ {
+				if n.replicaID == req.To[i] {
+					Warningf_down = true
+				}
+			}
+			if !Warningf_down {
 				plog.Warningf("ignored a %s message sent to %s but received by %s",
 					req.Type, dn(req.ShardID, req.To[0]), dn(req.ShardID, n.replicaID))
 				continue
@@ -2122,6 +2138,67 @@ func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64
 	nh.engine.setStepReadyByMessageBatch(msg)
 	return snapshotCount, msgCount
 }
+
+// func (h *messageHandler) HandleMessageBatch(msg pb.MessageBatch) (uint64, uint64) {
+// 	nh := h.nh
+// 	snapshotCount := uint64(0)
+// 	msgCount := uint64(0)
+
+// 	// 检查 msg.Requests 是否为空
+// 	if len(msg.Requests) == 0 {
+// 		plog.Warningf("msg.Requests is empty")
+// 		return 0, 0
+// 	}
+
+// 	if nh.isPartitioned() {
+// 		keep := false
+// 		// InstallSnapshot is an in-memory local message type that will never be
+// 		// dropped in production as it will never be sent via networks
+// 		for _, req := range msg.Requests {
+// 			if req.Type == pb.InstallSnapshot {
+// 				keep = true
+// 			}
+// 		}
+// 		if !keep {
+// 			return 0, 0
+// 		}
+// 	}
+
+// 	for _, req := range msg.Requests {
+// 		// 检查 req.To 是否为空
+// 		if len(req.To) == 0 {
+// 			plog.Panicf("to field not set or empty, %s", req.Type)
+// 		}
+
+// 		if n, ok := nh.getShard(req.ShardID); ok {
+// 			if n.replicaID != req.To[0] {
+// 				plog.Warningf("ignored a %s message sent to %s but received by %s",
+// 					req.Type, dn(req.ShardID, req.To[0]), dn(req.ShardID, n.replicaID))
+// 				continue
+// 			}
+// 			if req.Type == pb.InstallSnapshot {
+// 				n.mq.MustAdd(req)
+// 				snapshotCount++
+// 			} else if req.Type == pb.SnapshotReceived {
+// 				plog.Debugf("SnapshotReceived received, shard id %d, replica id %d",
+// 					req.ShardID, req.From)
+// 				n.mq.AddDelayed(pb.MY_Message{
+// 					Type: pb.SnapshotStatus,
+// 					From: req.From,
+// 				}, streamConfirmedDelayTick)
+// 				msgCount++
+// 			} else {
+// 				if added, stopped := n.mq.Add(req); !added || stopped {
+// 					plog.Warningf("dropped an incoming message")
+// 				} else {
+// 					msgCount++
+// 				}
+// 			}
+// 		}
+// 	}
+// 	nh.engine.setStepReadyByMessageBatch(msg)
+// 	return snapshotCount, msgCount
+// }
 
 func (h *messageHandler) HandleSnapshotStatus(shardID uint64,
 	replicaID uint64, failed bool) {

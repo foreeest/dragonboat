@@ -34,6 +34,7 @@
 package transport
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/cockroachdb/errors"
@@ -54,6 +55,9 @@ var (
 func (t *Transport) SendSnapshot(m pb.MY_Message) bool {
 	if !t.sendSnapshot(m) {
 		plog.Errorf("failed to send snapshot to %s", dn(m.ShardID, m.To[0]))
+		if len(m.To) > 1 {
+			fmt.Printf("t.sendSnapshotNotification(m.ShardID, m.To[0], true),but len(to)>1\n")
+		}
 		t.sendSnapshotNotification(m.ShardID, m.To[0], true)
 		return false
 	}
@@ -216,6 +220,9 @@ func splitBySnapshotFile(msg pb.MY_Message,
 		} else {
 			csz = snapshotChunkSize
 		}
+		if len(msg.To) > 1 {
+			fmt.Printf("pb Chunk To[0],but msg.To[0]'s len>1\n")
+		}
 		c := pb.Chunk{
 			BinVer:         raftio.TransportBinVersion,
 			ShardID:        msg.ShardID,
@@ -265,6 +272,9 @@ func getWitnessChunk(m pb.MY_Message, fs vfs.IFS) ([]pb.Chunk, error) {
 		return nil, err
 	}
 	results := make([]pb.Chunk, 0)
+	if len(m.To) > 1 {
+		fmt.Printf("results append ReplicaID:      m.To[0],but len of To>1\n")
+	}
 	results = append(results, pb.Chunk{
 		BinVer:         raftio.TransportBinVersion,
 		ShardID:        m.ShardID,

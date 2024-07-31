@@ -628,7 +628,7 @@ func TestFollowerCheckReplicate(t *testing.T) {
 		r.loadState(pb.State{Commit: 1})
 		r.becomeFollower(2, 2)
 		to_list_1 := []uint64{1}
-		ne(r.Handle(pb.MY_Message{From: 2, To: to_list_1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index}), t)
+		ne(r.Handle(pb.Message{From: 2, To: to_list_1, Type: pb.Replicate, Term: 2, LogTerm: tt.term, LogIndex: tt.index}), t)
 
 		msgs := r.readMessages()
 		to_list_2 := []uint64{2}
@@ -767,12 +767,12 @@ func TestLeaderSyncFollowerLog(t *testing.T) {
 		// first node needs the vote from the third node to become the leader.
 		n := newNetwork(lead, follower, nopStepper)
 		to_list_1 := []uint64{1}
-		n.send(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Election})
+		n.send(pb.Message{From: 1, To: to_list_1, Type: pb.Election})
 		// The election occurs in the term after the one we loaded with
 		// lead.loadState above.
-		n.send(pb.MY_Message{From: 3, To: to_list_1, Type: pb.RequestVoteResp, Term: term + 1})
+		n.send(pb.Message{From: 3, To: to_list_1, Type: pb.RequestVoteResp, Term: term + 1})
 
-		n.send(pb.MY_Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{}}})
+		n.send(pb.Message{From: 1, To: to_list_1, Type: pb.Propose, Entries: []pb.Entry{{}}})
 
 		if g := diffu(ltoa(lead.log), ltoa(follower.log)); g != "" {
 			t.Errorf("#%d: log diff:\n%s", i, g)

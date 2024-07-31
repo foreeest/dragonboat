@@ -74,14 +74,14 @@ func TestNonSnapshotMsgByCallingMustAddWillPanic(t *testing.T) {
 		t.Errorf("didn't panic")
 	}()
 	q := NewMessageQueue(8, false, 0, 0)
-	q.MustAdd(pb.MY_Message{})
+	q.MustAdd(pb.Message{})
 }
 
 func TestSnapshotCanAlwaysBeAdded(t *testing.T) {
 	q := NewMessageQueue(8, false, 0, 0)
 	for i := 0; i < 1024; i++ {
 		n := len(q.nodrop)
-		if !q.MustAdd(pb.MY_Message{Type: pb.InstallSnapshot}) {
+		if !q.MustAdd(pb.Message{Type: pb.InstallSnapshot}) {
 			t.Errorf("failed to add snapshot")
 		}
 		if len(q.nodrop) != n+1 {
@@ -94,7 +94,7 @@ func TestUnreachableMsgCanAlwaysBeAdded(t *testing.T) {
 	q := NewMessageQueue(8, false, 0, 0)
 	for i := 0; i < 1024; i++ {
 		n := len(q.nodrop)
-		if !q.MustAdd(pb.MY_Message{Type: pb.Unreachable}) {
+		if !q.MustAdd(pb.Message{Type: pb.Unreachable}) {
 			t.Errorf("failed to add snapshot")
 		}
 		if len(q.nodrop) != n+1 {
@@ -105,25 +105,25 @@ func TestUnreachableMsgCanAlwaysBeAdded(t *testing.T) {
 
 func TestAddedSnapshotWillBeReturned(t *testing.T) {
 	q := NewMessageQueue(8, false, 0, 0)
-	if !q.MustAdd(pb.MY_Message{Type: pb.InstallSnapshot}) {
+	if !q.MustAdd(pb.Message{Type: pb.InstallSnapshot}) {
 		t.Errorf("failed to add snapshot")
 	}
 	for i := 0; i < 4; i++ {
-		added, stopped := q.Add(pb.MY_Message{})
+		added, stopped := q.Add(pb.Message{})
 		if !added || stopped {
 			t.Errorf("failed to add")
 		}
 	}
-	if !q.MustAdd(pb.MY_Message{Type: pb.InstallSnapshot}) {
+	if !q.MustAdd(pb.Message{Type: pb.InstallSnapshot}) {
 		t.Errorf("failed to add snapshot")
 	}
 	for i := 0; i < 4; i++ {
-		added, stopped := q.Add(pb.MY_Message{})
+		added, stopped := q.Add(pb.Message{})
 		if !added || stopped {
 			t.Errorf("failed to add")
 		}
 	}
-	if !q.MustAdd(pb.MY_Message{Type: pb.InstallSnapshot}) {
+	if !q.MustAdd(pb.Message{Type: pb.InstallSnapshot}) {
 		t.Errorf("failed to add snapshot")
 	}
 	msgs := q.Get()
@@ -148,12 +148,12 @@ func TestMessageQueueCanBeStopped(t *testing.T) {
 	q := NewMessageQueue(8, false, 0, 0)
 	q.Close()
 	for i := 0; i < 4; i++ {
-		added, stopped := q.Add(pb.MY_Message{})
+		added, stopped := q.Add(pb.Message{})
 		if added || !stopped {
 			t.Errorf("unexpectedly added msg")
 		}
 	}
-	if q.MustAdd(pb.MY_Message{Type: pb.InstallSnapshot}) {
+	if q.MustAdd(pb.Message{Type: pb.InstallSnapshot}) {
 		t.Errorf("unexpectedly added snapshot")
 	}
 }
@@ -172,7 +172,7 @@ func TestRateLimiterCanBeEnabledInMessageQueue(t *testing.T) {
 func TestSingleMessageCanAlwaysBeAdded(t *testing.T) {
 	q := NewMessageQueue(10000, false, 0, 1024)
 	e := pb.Entry{Index: 1, Cmd: make([]byte, 2048)}
-	m := pb.MY_Message{
+	m := pb.Message{
 		Type:    pb.Replicate,
 		Entries: []pb.Entry{e},
 	}
@@ -192,7 +192,7 @@ func TestAddMessageIsRateLimited(t *testing.T) {
 	q := NewMessageQueue(10000, false, 0, 1024)
 	for i := 0; i < 10000; i++ {
 		e := pb.Entry{Index: uint64(i + 1)}
-		m := pb.MY_Message{
+		m := pb.Message{
 			Type:    pb.Replicate,
 			Entries: []pb.Entry{e},
 		}
@@ -221,7 +221,7 @@ func TestGetWillResetTheRateLimiterSize(t *testing.T) {
 	q := NewMessageQueue(10000, false, 0, 1024)
 	for i := 0; i < 8; i++ {
 		e := pb.Entry{Index: uint64(i + 1)}
-		m := pb.MY_Message{
+		m := pb.Message{
 			Type:    pb.Replicate,
 			Entries: []pb.Entry{e},
 		}
@@ -241,8 +241,8 @@ func TestGetWillResetTheRateLimiterSize(t *testing.T) {
 
 func TestGetDelayed(t *testing.T) {
 	q := NewMessageQueue(10, false, 0, 1024)
-	q.AddDelayed(pb.MY_Message{From: 1, Type: pb.SnapshotStatus}, 2)
-	q.AddDelayed(pb.MY_Message{From: 2, Type: pb.SnapshotStatus}, 10)
+	q.AddDelayed(pb.Message{From: 1, Type: pb.SnapshotStatus}, 2)
+	q.AddDelayed(pb.Message{From: 2, Type: pb.SnapshotStatus}, 10)
 	require.Equal(t, 2, len(q.delayed))
 	result := q.getDelayed()
 	require.Equal(t, 0, len(result))
@@ -258,12 +258,12 @@ func TestGetDelayed(t *testing.T) {
 
 func TestDelayedMessage(t *testing.T) {
 	q := NewMessageQueue(10, false, 0, 1024)
-	rm := pb.MY_Message{}
-	mm := pb.MY_Message{Type: pb.InstallSnapshot}
+	rm := pb.Message{}
+	mm := pb.Message{Type: pb.InstallSnapshot}
 	q.Add(rm)
 	q.MustAdd(mm)
-	dm1 := pb.MY_Message{From: 1, Type: pb.SnapshotStatus}
-	dm2 := pb.MY_Message{From: 2, Type: pb.SnapshotStatus}
+	dm1 := pb.Message{From: 1, Type: pb.SnapshotStatus}
+	dm2 := pb.Message{From: 2, Type: pb.SnapshotStatus}
 	q.AddDelayed(dm1, 2)
 	q.AddDelayed(dm2, 10)
 	q.Tick()

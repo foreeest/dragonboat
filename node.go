@@ -15,6 +15,7 @@
 package dragonboat
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -1049,6 +1050,7 @@ func (n *node) sendEnterQuiesceMessages() {
 				To:      to_list,
 				ShardID: n.shardID,
 			}
+			fmt.Printf("in node sendEnterQuiesceMssages, the length of to:%d", len(msg.To))
 			n.sendRaftMessage(msg)
 		}
 	}
@@ -1064,10 +1066,16 @@ func (n *node) sendMessages(msgs []pb.MY_Message) {
 }
 
 func (n *node) sendReplicateMessages(ud pb.Update) {
-	for _, msg := range ud.My_Messages {
-		if isFreeOrderMessage(msg) {
-			msg.ShardID = n.shardID
-			n.sendRaftMessage(msg)
+	// for _, msg := range ud.My_Messages {
+	// 	if isFreeOrderMessage(msg) {
+	// 		msg.ShardID = n.shardID
+	// 		n.sendRaftMessage(msg)
+	// 	}
+	// }
+	for _, My_msg := range ud.My_Messages {
+		if isFreeOrderMessage(My_msg) {
+			My_msg.ShardID = n.shardID
+			n.sendRaftMessage(My_msg)
 		}
 	}
 }
@@ -1155,6 +1163,9 @@ func (n *node) processRaftUpdate(ud pb.Update) error {
 	if err := n.logReader.Append(ud.EntriesToSave); err != nil {
 		return err
 	}
+	// for i:=0; i<len(ud.My_Messages); i++{
+	// 	fmt.Printf("in node processraftupdate my_message to length: %d\n",len(ud.My_Messages[0].To))
+	// }
 	n.sendMessages(ud.My_Messages)
 	if err := n.removeLog(); err != nil {
 		return err

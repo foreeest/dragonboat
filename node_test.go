@@ -126,14 +126,9 @@ func (r *testRouter) send(msg pb.MY_Message) {
 	if r.shouldDrop(msg) {
 		return
 	}
-	for i := 0; i < len(msg.To); i++ {
-		if _, ok := r.qm[msg.To[i]]; !ok {
-			fmt.Printf("JPF add error : node_test 131 line, ok is false !\n")
-		}
+	if q, ok := r.qm[msg.To]; ok {
+		q.Add(msg)
 	}
-	q_0, _ := r.qm[msg.To[0]]
-	q_0.Add(msg)
-
 }
 
 func (r *testRouter) getQ(shardID uint64,
@@ -363,9 +358,7 @@ func singleStepNodes(nodes []*node, smList []*rsm.StateMachine,
 	r *testRouter) {
 	for _, node := range nodes {
 		tick := node.pendingReadIndexes.getTick() + 1
-		var to_list_replicaID []uint64
-		to_list_replicaID = append(to_list_replicaID, node.replicaID)
-		tickMsg := pb.MY_Message{Type: pb.LocalTick, To: to_list_replicaID, Hint: tick}
+		tickMsg := pb.MY_Message{Type: pb.LocalTick, To: node.replicaID, Hint: tick}
 		tickMsg.ShardID = testShardID
 		r.send(tickMsg)
 	}
@@ -378,11 +371,9 @@ func stepNodes(nodes []*node, smList []*rsm.StateMachine,
 	for i := uint64(0); i < s; i++ {
 		for _, node := range nodes {
 			tick := node.pendingReadIndexes.getTick() + 1
-			var to_list_replicaID []uint64
-			to_list_replicaID = append(to_list_replicaID, node.replicaID)
 			tickMsg := pb.MY_Message{
 				Type:    pb.LocalTick,
-				To:      to_list_replicaID,
+				To:      node.replicaID,
 				ShardID: testShardID,
 				Hint:    tick,
 			}

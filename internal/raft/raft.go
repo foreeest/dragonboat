@@ -704,7 +704,9 @@ func (r *raft) My_finalizeMessageTerm(m pb.MY_Message) pb.MY_Message {
 // JPF:My_send
 func (r *raft) My_send(m pb.MY_Message) {
 	m.From = r.replicaID
+	// fmt.Printf("check in raft the My_send tos111: %d\n",len(m.To))
 	m = r.My_finalizeMessageTerm(m)
+	// fmt.Printf("check in raft the My_send tos222: %d\n",len(m.To))
 	r.My_msgs = append(r.My_msgs, m)
 }
 
@@ -874,6 +876,7 @@ func (r *raft) sendReplicateMessage(to uint64) {
 		return
 	}
 	m, err := r.makeReplicateMessage(to, rp.next, maxEntrySize)
+	// fmt.Printf("sd replicate: rp.nx%d,msg:ht%d,cmt:%d,En:%d\n", rp.next, m.Hint, m.Commit, len(m.Entries))
 	if err != nil {
 		// log not available due to compaction, send snapshot
 		if !rp.isActive() {
@@ -903,11 +906,17 @@ func (r *raft) My_sendReplicateMessage(to_nid [32]uint64, to_nid_next int) {
 		var to = to_nid[i]
 		var rp *remote
 		if v, ok := r.remotes[to]; ok {
-			rp = v
+			rp = v //one type remote struct, and its next means the领导者节点的最后一个日志条目索引加一
+			if rp.isPaused() {
+				continue
+			}
 			remote_and_nonvoting_to = append(remote_and_nonvoting_to, rp)
 			remote_and_nonvoting_nid = append(remote_and_nonvoting_nid, to)
 		} else if v, ok := r.nonVotings[to]; ok {
 			rp = v
+			if rp.isPaused() {
+				continue
+			}
 			remote_and_nonvoting_to = append(remote_and_nonvoting_to, rp)
 			remote_and_nonvoting_nid = append(remote_and_nonvoting_nid, to)
 		} else {
@@ -915,90 +924,135 @@ func (r *raft) My_sendReplicateMessage(to_nid [32]uint64, to_nid_next int) {
 			if !ok {
 				plog.Panicf("%s failed to get the remote instance", r.describe())
 			}
+			if rp.isPaused() {
+				continue
+			}
 			witness_to = append(witness_to, rp)
 			witness_nid = append(witness_nid, to)
 		}
-	}
+	} //to classify remotes,witness
 	//JPF:remote_and_nonvoting,map
-	map_pb_remote_and_nonvoting := make(map[uint64]pb.MY_Message)
+	map_pb_remote_and_nonvoting := make(map[uint64]pb.MY_Message) //键是 uint64 类型，值是 pb.MY_Message 类型
 	map_pb_witness := make(map[uint64]pb.MY_Message)
 	var remote_and_nonvoting_to_len = len(remote_and_nonvoting_to)
 	var witness_to_len = len(witness_to)
 	for i := 0; i < remote_and_nonvoting_to_len; i++ {
-		var rp = remote_and_nonvoting_to[i]
+		var rp = remote_and_nonvoting_to[i] // remote struct
 		var rp_nid = remote_and_nonvoting_nid[i]
-		var to_send_messages pb.MY_Message
-		to_send_messages, ok := map_pb_remote_and_nonvoting[rp.next]
-		if ok { //JPF:这个index的my_message已经被创建，只需要给它的To appned就好了
-			to_send_messages.To = append(to_send_messages.To, rp_nid)
-			map_pb_remote_and_nonvoting[rp.next] = to_send_messages
-		} else { //JPF:需要创建my_message,并给到map里面
-			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
-			if err != nil {
-				// log not available due to compaction, send snapshot
-				if !rp.isActive() {
-					plog.Warningf("%s, %s is not active, sending snapshot is skipped",
-						r.describe(), ReplicaID(rp_nid))
-					return
-				}
-				var m_message pb.MY_Message
-				index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
-				plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
-					r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
-				rp.becomeSnapshot(index)
-				r.send(m_message)
-				continue
-				//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
-			} else if len(m.Entries) > 0 {
-				//JPF:如果 makeReplicateMessage 方法没有返回错误，
-				//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+		// var to_send_messages pb.MY_Message
+		m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+		if err == nil {
+			hash_v := uint64(10000)
+			key_1 := uint64(len(m.Entries))*hash_v*hash_v + m.Commit*hash_v + rp.next//len(m.Entries)<10000
+			to_send_messages, ok := map_pb_remote_and_nonvoting[key_1]
+			if ok {
+				to_send_messages.To = append(to_send_messages.To, rp_nid)
+				map_pb_remote_and_nonvoting[key_1] = to_send_messages
+			} else {
+				map_pb_remote_and_nonvoting[key_1] = m
+			}
+			if len(m.Entries) > 0 {
 				lastIndex := m.Entries[len(m.Entries)-1].Index
 				rp.progress(lastIndex)
 			}
-			to_send_messages = m
-			//创建条目
-			map_pb_remote_and_nonvoting[rp.next] = to_send_messages
+		} else {
+			panic("send replicate didn't handle\n")
 		}
+
+		// if ok {                                                    //JPF:这个index的my_message已经被创建，只需要给它的To appned就好了
+		// 	to_send_messages.To = append(to_send_messages.To, rp_nid)
+		// 	// fmt.Printf("to[] is")
+		// 	// for i := 0; i < len(to_send_messages.To); i++ {
+		// 	// 	fmt.Printf(" %d", to_send_messages.To[i])
+		// 	// }
+		// 	map_pb_remote_and_nonvoting[key_1] = to_send_messages
+		// } else { //JPF:需要创建my_message,并给到map里面
+		// 	m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+		// 	if err != nil {
+		// 		// log not available due to compaction, send snapshot
+		// 		if !rp.isActive() {
+		// 			plog.Warningf("%s, %s is not active, sending snapshot is skipped",
+		// 				r.describe(), ReplicaID(rp_nid))
+		// 			return
+		// 		}
+		// 		var m_message pb.MY_Message
+		// 		index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
+		// 		plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
+		// 			r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
+		// 		rp.becomeSnapshot(index)
+		// 		r.send(m_message)
+		// 		continue
+		// 		//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
+		// 	} else if len(m.Entries) > 0 {
+		// 		//JPF:如果 makeReplicateMessage 方法没有返回错误，
+		// 		//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+		// 		lastIndex := m.Entries[len(m.Entries)-1].Index
+		// 		rp.progress(lastIndex)
+		// 	}
+		// 	to_send_messages = m
+		// 	//创建条目
+		// 	map_pb_remote_and_nonvoting[rp.next] = to_send_messages
+		// }
 
 	} //JPF:现在map中包含了各种index的条目 对应的 My_message, 接下来发送它
 	for _, my_message_to_send := range map_pb_remote_and_nonvoting {
-		r.My_send(my_message_to_send) //
-	} //
+		r.My_send(my_message_to_send)
+	}
 	//JPF:现在来处理给witness发送的
 	for i := 0; i < witness_to_len; i++ {
 		var rp = witness_to[i]
 		var rp_nid = witness_nid[i]
-		var to_send_messages_witness pb.MY_Message
-		to_send_messages_witness, ok := map_pb_witness[rp.next]
-		if ok {
-			to_send_messages_witness.To = append(to_send_messages_witness.To, rp_nid)
-			map_pb_witness[rp.next] = to_send_messages_witness
-		} else {
-			m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
-			if err != nil {
-				// log not available due to compaction, send snapshot
-				if !rp.isActive() {
-					plog.Warningf("%s, %s is not active, sending snapshot is skipped",
-						r.describe(), ReplicaID(rp_nid))
-					return
-				}
-				var m_message pb.MY_Message
-				index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
-				plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
-					r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
-				rp.becomeSnapshot(index)
-				r.send(m_message)
-				continue
-				//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
-			} else if len(m.Entries) > 0 {
-				//JPF:如果 makeReplicateMessage 方法没有返回错误，
-				//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+		// var to_send_messages_witness pb.MY_Message
+
+		m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+		if err == nil {
+			hash_v := uint64(10000)
+			key_1 := uint64(len(m.Entries))*hash_v*hash_v + m.Commit*hash_v + rp.next
+			to_send_messages, ok := map_pb_witness[key_1]
+			if ok {
+				to_send_messages.To = append(to_send_messages.To, rp_nid)
+				map_pb_witness[key_1] = to_send_messages
+			} else {
+				map_pb_witness[key_1] = m
+			}
+			if len(m.Entries) > 0 {
 				lastIndex := m.Entries[len(m.Entries)-1].Index
 				rp.progress(lastIndex)
 			}
-			to_send_messages_witness = m
-			map_pb_witness[rp.next] = to_send_messages_witness
+		} else {
+			panic("send replicate didn't handle\n")
 		}
+
+		// to_send_messages_witness, ok := map_pb_witness[rp.next]
+		// if ok {
+		// 	to_send_messages_witness.To = append(to_send_messages_witness.To, rp_nid)
+		// 	map_pb_witness[rp.next] = to_send_messages_witness
+		// } else {
+		// 	m, err := r.My_makeReplicateMessage(rp_nid, rp.next, maxEntrySize)
+		// 	if err != nil {
+		// 		// log not available due to compaction, send snapshot
+		// 		if !rp.isActive() {
+		// 			plog.Warningf("%s, %s is not active, sending snapshot is skipped",
+		// 				r.describe(), ReplicaID(rp_nid))
+		// 			return
+		// 		}
+		// 		var m_message pb.MY_Message
+		// 		index := r.makeInstallSnapshotMessage(rp_nid, &m_message)
+		// 		plog.Infof("%s is sending snapshot (%d) to %s, r.Next %d, r.Match %d, %v",
+		// 			r.describe(), index, ReplicaID(rp_nid), rp.next, rp.match, err)
+		// 		rp.becomeSnapshot(index)
+		// 		r.send(m_message)
+		// 		continue
+		// 		//JPF:上面发送快照即可，剩下不用管，继续处理下一个节点
+		// 	} else if len(m.Entries) > 0 {
+		// 		//JPF:如果 makeReplicateMessage 方法没有返回错误，
+		// 		//并且返回的日志消息 m 包含至少一个日志条目，则进入这个块。
+		// 		lastIndex := m.Entries[len(m.Entries)-1].Index
+		// 		rp.progress(lastIndex)
+		// 	}
+		// 	to_send_messages_witness = m
+		// 	map_pb_witness[rp.next] = to_send_messages_witness
+		// }
 	}
 	for _, my_message_witness_to_send := range map_pb_witness {
 		r.My_send(my_message_witness_to_send)
@@ -1019,7 +1073,7 @@ func (r *raft) broadcastReplicateMessage() {
 	// 		r.sendReplicateMessage(nid)
 	// 	}
 	// }
-	//上面是原代码
+	// 上面是原代码
 	//JPF :下面是我修改后的代码
 	var to_nid [32]uint64 //这里假设集群机器数量最大为32个
 	var to_nid_next = 0
@@ -1032,11 +1086,11 @@ func (r *raft) broadcastReplicateMessage() {
 	r.My_sendReplicateMessage(to_nid, to_nid_next)
 }
 
-func (r *raft) sendHeartbeatMessage(to uint64,
-	hint pb.SystemCtx, match uint64) {
-	commit := min(match, r.log.committed)
-	var to_list []uint64
-	to_list = append(to_list, to)
+func (r *raft) sendHeartbeatMessage(
+	hint pb.SystemCtx, commit uint64, to_list []uint64) {
+	//commit := min(match, r.log.committed)
+	// var to_list []uint64
+	// to_list = append(to_list, to)
 	r.send(pb.MY_Message{
 		To:       to_list,
 		Type:     pb.Heartbeat,
@@ -1060,14 +1114,43 @@ func (r *raft) broadcastHeartbeatMessage() {
 
 func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
 	zeroCtx := pb.SystemCtx{}
+	//JPF add
+	map_of_to_list_votingMembers := make(map[uint64][]uint64, 5)
 	for id, rm := range r.votingMembers() {
 		if id != r.replicaID {
-			r.sendHeartbeatMessage(id, ctx, rm.match)
+			commit := min(rm.match, r.log.committed)
+			to_list_commit, ok := map_of_to_list_votingMembers[commit]
+			if !ok {
+				var to_list_new []uint64
+				to_list_new = append(to_list_new, id)
+				map_of_to_list_votingMembers[commit] = to_list_new
+			} else {
+				to_list_commit = append(to_list_commit, id)
+				map_of_to_list_votingMembers[commit] = to_list_commit
+			}
+			//r.sendHeartbeatMessage(id, ctx, rm.match)
 		}
 	}
+	for commit_1, to_list_1 := range map_of_to_list_votingMembers {
+		r.sendHeartbeatMessage(ctx, commit_1, to_list_1)
+	}
 	if ctx == zeroCtx {
+		map_of_nonvoting_to_list := make(map[uint64][]uint64, 5)
 		for id, rm := range r.nonVotings {
-			r.sendHeartbeatMessage(id, zeroCtx, rm.match)
+			commit := min(rm.match, r.log.committed)
+			to_list_commit, ok := map_of_nonvoting_to_list[commit]
+			if !ok {
+				var to_list_new []uint64
+				to_list_new = append(to_list_new, id)
+				map_of_nonvoting_to_list[commit] = to_list_new
+			} else {
+				to_list_commit = append(to_list_commit, id)
+				map_of_nonvoting_to_list[commit] = to_list_commit
+			}
+			//r.sendHeartbeatMessage(id, zeroCtx, rm.match)
+		}
+		for commit_2, to_list_2 := range map_of_nonvoting_to_list {
+			r.sendHeartbeatMessage(zeroCtx, commit_2, to_list_2)
 		}
 	}
 }
@@ -1964,6 +2047,9 @@ func (r *raft) handleNodeConfigChange(m pb.MY_Message) error {
 
 func (r *raft) handleLogQuery(m pb.MY_Message) error {
 	if r.logQueryResult == nil {
+		if len(m.To) > 1 {
+			fmt.Printf("r.log.getCommittedEntries(m.From, m.To[0], m.Hint), but len(to)>1\n")
+		}
 		entries, err := r.log.getCommittedEntries(m.From, m.To[0], m.Hint)
 		r.logQueryResult = &pb.LogQueryResult{
 			FirstIndex: r.log.firstIndex(),
